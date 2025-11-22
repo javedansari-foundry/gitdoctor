@@ -1,0 +1,103 @@
+# GitLab Commit Mapper Configuration
+# Copy this file to config.yaml and fill in your details
+
+# GitLab connection settings
+gitlab:
+  # Base URL of your GitLab instance (no trailing slash)
+  base_url: "https://gitlab.example.com"
+  
+  # Your GitLab Personal Access Token (PAT)
+  # Generate one at: User Settings > Access Tokens
+  # Required scopes: api, read_api, read_repository
+  private_token: "YOUR_GITLAB_PERSONAL_ACCESS_TOKEN"
+  
+  # API version (usually v4)
+  api_version: "v4"
+  
+  # Whether to verify SSL certificates
+  # Set to false if using self-signed certificates (not recommended for production)
+  verify_ssl: true
+  
+  # Request timeout in seconds
+  timeout_seconds: 15
+
+# Scan mode configuration
+scan:
+  # Scan mode: "auto_discover" or "explicit"
+  # 
+  # auto_discover: Automatically discover all projects from configured groups
+  #                This is useful when you want to search across all repos in your organization
+  # 
+  # explicit:      Only search explicitly listed projects
+  #                This is faster when you know exactly which repos to search
+  mode: "auto_discover"
+
+# Explicitly configured projects (used in explicit mode, or as additions in auto_discover mode)
+projects:
+  # Projects by numeric ID
+  by_id:
+    # - 123
+    # - 456
+  
+  # Projects by full path (group/subgroup/project)
+  by_path:
+    # - "your-group/backend/payments-service"
+    # - "your-group/frontend/web-app"
+
+# Groups to discover projects from (used in auto_discover mode)
+groups:
+  # Whether to include projects from subgroups
+  include_subgroups: true
+  
+  # Groups by numeric ID
+  by_id:
+    # - 42
+  
+  # Groups by path (group/subgroup)
+  by_path:
+    # - "your-group"
+    # - "your-group/backend"
+
+# Optional filters to restrict which projects are searched
+filters:
+  # If specified, ONLY these project paths will be searched (whitelist)
+  # This applies after projects are discovered
+  include_project_paths:
+    # - "your-group/backend/payments-service"
+    # - "your-group/backend/notifications-service"
+  
+  # Projects to exclude from search (blacklist)
+  # Useful for skipping very large repos or archived projects
+  exclude_project_paths:
+    # - "your-group/archived/legacy-service"
+    # - "your-group/test/large-test-repo"
+
+
+# ==================== Configuration Examples ====================
+
+# Example 1: Search all projects in a group (auto-discover mode)
+# scan:
+#   mode: "auto_discover"
+# groups:
+#   include_subgroups: true
+#   by_path:
+#     - "your-group/backend"
+
+# Example 2: Search only specific projects (explicit mode)
+# scan:
+#   mode: "explicit"
+# projects:
+#   by_path:
+#     - "your-group/backend/payments-service"
+#     - "your-group/frontend/web-app"
+
+# Example 3: Auto-discover with exclusions (skip large repos)
+# scan:
+#   mode: "auto_discover"
+# groups:
+#   by_path:
+#     - "your-group"
+# filters:
+#   exclude_project_paths:
+#     - "your-group/test/large-test-repo"
+

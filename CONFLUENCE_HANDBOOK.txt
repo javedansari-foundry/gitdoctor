@@ -1,0 +1,762 @@
+================================================================================
+                    GitDoctor - User Handbook
+================================================================================
+
+Version: 1.0.0
+Last Updated: 2024-11
+Owner: Platform Engineering Team
+Audience: DevOps, QA, Release Management Teams
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. What is GitLab Commit Mapper?
+2. When to Use This Tool
+3. Prerequisites
+4. Installation Guide
+5. Configuration Walkthrough
+6. Step-by-Step Usage
+7. Understanding the Output
+8. Common Workflows
+9. Troubleshooting Guide
+10. Performance Tips
+11. Security Best Practices
+12. FAQ
+
+================================================================================
+1. WHAT IS GITDOCTOR?
+================================================================================
+
+GitDoctor is a command-line tool that helps you find which GitLab
+repositories contain specific Git commits. 
+
+Given a list of commit SHAs, the tool:
+- Searches across multiple GitLab repositories
+- Identifies which repositories contain each commit
+- Reports which branches and tags include each commit
+- Exports all findings to a CSV file for analysis in Excel
+
+This is especially useful when:
+- Core team provides commit IDs and you need to verify their deployment
+- You need to track which commits made it to production vs staging
+- You want to identify all branches containing specific fixes or features
+- You need to generate audit reports for compliance
+
+================================================================================
+2. WHEN TO USE THIS TOOL
+================================================================================
+
+USE THIS TOOL WHEN:
+
+* Core team sends you a list of commit IDs to verify
+* You need to check if specific commits are in production branches
+* You want to know which repositories received a particular fix
+* You need to generate a report showing commit deployment status
+* You're tracking commits across multiple microservices
+* You need to identify all tags/releases containing specific commits
+
+DO NOT USE THIS TOOL FOR:
+
+* Finding commits by message or author (use GitLab web UI search instead)
+* Analyzing commit contents or diffs (use git log or GitLab UI)
+* Managing or creating commits (use git directly)
+
+================================================================================
+3. PREREQUISITES
+================================================================================
+
+Before using GitLab Commit Mapper, you need:
+
+A. ACCESS REQUIREMENTS:
+   - Access to your GitLab instance (self-hosted or gitlab.com)
+   - At least "Reporter" or "Guest" role on repositories you want to search
+   - Permission to create Personal Access Tokens
+
+B. TECHNICAL REQUIREMENTS:
+   - Python 3.10 or higher installed
+   - Command line access (Terminal on Mac/Linux, Command Prompt on Windows)
+   - Network access to your GitLab instance
+
+C. INFORMATION NEEDED:
+   - Your GitLab instance URL (e.g., https://gitlab.company.com)
+   - GitLab group names or project paths you want to search
+   - List of commit SHAs to search for
+
+================================================================================
+4. INSTALLATION GUIDE
+================================================================================
+
+STEP 1: GET THE TOOL
+
+Option A - From Git Repository:
+   1. Open Terminal or Command Prompt
+   2. Navigate to your work directory:
+      cd ~/tools
+   
+   3. Clone the repository:
+      git clone <repository-url>
+      cd gitlab-commit-mapper
+
+Option B - From Shared Network Drive:
+   1. Copy the gitlab-commit-mapper folder to your local machine
+   2. Open Terminal and navigate to the folder
+
+STEP 2: CREATE VIRTUAL ENVIRONMENT
+
+On Mac/Linux:
+   python3 -m venv venv
+   source venv/bin/activate
+
+On Windows:
+   python -m venv venv
+   venv\Scripts\activate
+
+You should see (venv) in your command prompt after activation.
+
+STEP 3: INSTALL THE TOOL
+
+   pip install -e .
+
+Wait for installation to complete (usually 30-60 seconds).
+
+STEP 4: VERIFY INSTALLATION
+
+   gitlab-commit-mapper --version
+
+You should see: gitlab-commit-mapper 1.0.0
+
+================================================================================
+5. CONFIGURATION WALKTHROUGH
+================================================================================
+
+STEP 1: CREATE YOUR PERSONAL ACCESS TOKEN (PAT)
+
+   1. Log into your GitLab instance
+   2. Click your profile picture (top right)
+   3. Select "Preferences" or "Settings"
+   4. Click "Access Tokens" in left sidebar
+   5. Fill in the form:
+      - Token name: gitlab-commit-mapper
+      - Expiration date: Set according to your company policy
+      - Select scopes:
+        [x] api
+        [x] read_api
+        [x] read_repository
+   6. Click "Create personal access token"
+   7. COPY THE TOKEN IMMEDIATELY (it won't be shown again)
+   8. Save it securely (password manager or secure note)
+
+IMPORTANT: Never share your PAT or commit it to Git!
+
+STEP 2: CREATE CONFIGURATION FILE
+
+   1. Copy the example config:
+      cp config.example.yaml config.yaml
+
+   2. Open config.yaml in a text editor
+
+STEP 3: CONFIGURE GITLAB CONNECTION
+
+   Find this section in config.yaml:
+
+   gitlab:
+     base_url: "https://gitlab.example.com"
+     private_token: "YOUR_GITLAB_PERSONAL_ACCESS_TOKEN"
+     verify_ssl: true
+     timeout_seconds: 15
+
+   Replace with your details:
+   - base_url: Your GitLab URL (NO trailing slash)
+   - private_token: Paste your PAT from Step 1
+   - verify_ssl: Keep as true (unless using self-signed certificates)
+   - timeout_seconds: Keep default (15) unless you have slow network
+
+STEP 4: CHOOSE SCAN MODE
+
+   You have two options:
+
+   OPTION A - Auto-Discover Mode (Search all repos in a group):
+   
+   scan:
+     mode: "auto_discover"
+   
+   groups:
+     include_subgroups: true
+     by_path:
+       - "dfs-core/devops"
+
+   This will search ALL repositories in the dfs-core/devops group.
+   Use this when you want comprehensive coverage.
+
+   OPTION B - Explicit Mode (Search specific repos only):
+   
+   scan:
+     mode: "explicit"
+   
+   projects:
+     by_path:
+       - "dfs-core/devops/multinode_deployment"
+       - "dfs-core/devops/ansible_configs"
+
+   This will search ONLY the listed repositories.
+   Use this when you know exactly which repos to check (much faster).
+
+STEP 5: ADD FILTERS (OPTIONAL)
+
+   To exclude large or irrelevant repositories:
+
+   filters:
+     exclude_project_paths:
+       - "dfs-core/archived/old-project"
+       - "dfs-core/huge-monorepo"
+
+   To search only specific repositories from auto-discovered list:
+
+   filters:
+     include_project_paths:
+       - "dfs-core/devops/project1"
+       - "dfs-core/devops/project2"
+
+STEP 6: SAVE AND CLOSE
+
+   Save config.yaml and close the editor.
+
+================================================================================
+6. STEP-BY-STEP USAGE
+================================================================================
+
+SCENARIO: Core team sent you a list of commit IDs to verify in your
+          development and production repositories.
+
+STEP 1: PREPARE COMMIT LIST
+
+   Create a text file called commits.txt with one commit SHA per line:
+
+   Example commits.txt:
+   ---
+   a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
+   b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1
+   c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2
+   ---
+
+   Tips:
+   - Each SHA should be on its own line
+   - Empty lines are ignored
+   - Full SHA or short SHA both work (full is more reliable)
+   - You can copy-paste from Excel, email, or chat
+
+STEP 2: ACTIVATE VIRTUAL ENVIRONMENT (if not already active)
+
+   On Mac/Linux:
+      source venv/bin/activate
+
+   On Windows:
+      venv\Scripts\activate
+
+STEP 3: RUN THE TOOL
+
+   Basic command:
+      gitlab-commit-mapper -i commits.txt -o results.csv
+
+   With verbose output (recommended for first run):
+      gitlab-commit-mapper -i commits.txt -o results.csv -v
+
+   What you'll see:
+   - "Loading configuration..." 
+   - "Testing GitLab connection..."
+   - "Resolving projects to search..." (may take a minute)
+   - "Searching for commits..." (progress updates)
+   - "Writing results to results.csv"
+   - Summary statistics
+
+   Typical runtime:
+   - 10 commits x 10 projects = 1-2 minutes
+   - 50 commits x 50 projects = 5-10 minutes
+
+STEP 4: OPEN RESULTS
+
+   Open results.csv in Microsoft Excel or Google Sheets.
+
+   The CSV contains these columns:
+   - commit_sha: The commit you searched for
+   - project_name: Repository name
+   - project_path: Full path to repository
+   - author_name: Who made the commit
+   - title: Commit message
+   - created_at: When commit was created
+   - branches: Which branches have this commit (pipe-separated)
+   - tags: Which tags include this commit (pipe-separated)
+   - found: TRUE if commit exists in this repo
+
+STEP 5: ANALYZE RESULTS
+
+   Common Excel operations:
+
+   To find all repos containing a specific commit:
+   1. Filter "commit_sha" column to the commit you want
+   2. Look at all matching rows
+
+   To check if commit is in production:
+   1. Filter "branches" column to "contains master" or "contains main"
+   2. Filter "commit_sha" to your commit
+
+   To find all commits not in any repo:
+   1. Create a pivot table on commit_sha
+   2. Look for commits with no rows or found=FALSE
+
+================================================================================
+7. UNDERSTANDING THE OUTPUT
+================================================================================
+
+THE CSV COLUMNS EXPLAINED:
+
+commit_sha
+   - The Git commit hash you searched for
+   - Example: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
+
+project_id
+   - GitLab internal project ID number
+   - Used for API calls (not usually needed by users)
+
+project_name
+   - Simple name of the repository
+   - Example: multinode_deployment
+
+project_path
+   - Full path including groups
+   - Example: dfs-core/devops/multinode_deployment
+
+project_web_url
+   - Clickable link to the repository
+   - Click to view the repo in GitLab
+
+commit_web_url
+   - Clickable link to the specific commit
+   - Click to view commit details in GitLab
+
+author_name
+   - Name of person who created the commit
+   - Example: John Doe
+
+author_email
+   - Email of commit author
+   - Example: john.doe@company.com
+
+title
+   - First line of commit message
+   - Example: "Fix database connection timeout"
+
+created_at
+   - Timestamp when commit was created
+   - Format: 2024-01-15T10:30:00.000Z
+
+branches
+   - All branches containing this commit
+   - Format: branch1|branch2|branch3
+   - Example: master|develop|feature-x
+
+tags
+   - All tags (releases) containing this commit
+   - Format: tag1|tag2|tag3
+   - Example: v1.0.0|v1.1.0
+
+found
+   - TRUE if commit exists in this project
+   - FALSE if not found
+
+error
+   - Error message if something went wrong
+   - Usually empty if found=TRUE
+
+UNDERSTANDING THE RESULTS:
+
+One commit, one repository = One row
+   If commit abc123 exists in 3 repositories, you'll see 3 rows.
+
+No rows for a commit = Not found anywhere
+   If you searched for commit xyz789 but see no rows for it,
+   it wasn't found in any of the searched repositories.
+
+Multiple branches = Widely deployed
+   If the branches column shows "master|develop|staging|hotfix",
+   this commit has been merged to many branches.
+
+Empty branches column = Orphaned commit
+   Commit exists but isn't in any branch (rare, usually from rebases).
+
+================================================================================
+8. COMMON WORKFLOWS
+================================================================================
+
+WORKFLOW 1: VERIFY COMMITS IN PRODUCTION
+
+Goal: Check if specific commits made it to production (master branch)
+
+Steps:
+1. Get commit list from core team
+2. Create commits.txt with the SHAs
+3. Run: gitlab-commit-mapper -i commits.txt -o production-check.csv
+4. Open production-check.csv in Excel
+5. Filter "branches" column: "contains master" or "contains main"
+6. Filter "found" column: TRUE
+7. Result: List of commits currently in production
+
+WORKFLOW 2: TRACK COMMIT ACROSS MICROSERVICES
+
+Goal: Find which microservices received a shared library update
+
+Steps:
+1. Get the commit SHA from the shared library
+2. Create commits.txt with just that SHA
+3. Configure auto_discover mode for your microservices group
+4. Run the tool
+5. Open CSV
+6. All rows show which microservices picked up the change
+
+WORKFLOW 3: GENERATE DEPLOYMENT REPORT
+
+Goal: Create a report for management showing commit deployment status
+
+Steps:
+1. Collect all commits from the sprint/release
+2. Run tool with auto_discover for all relevant repos
+3. Open CSV in Excel
+4. Create pivot table:
+   - Rows: commit_sha, title, author_name
+   - Columns: project_name
+   - Values: Count of found (TRUE/FALSE)
+5. Format and share report
+
+WORKFLOW 4: FIND RELEASE TAGS FOR COMMITS
+
+Goal: Identify which release versions include specific bug fixes
+
+Steps:
+1. Get bug fix commit SHAs
+2. Run tool
+3. Open CSV
+4. Filter to your commits
+5. Look at "tags" column
+6. Result: You can tell customers "Fixed in v1.2.3"
+
+================================================================================
+9. TROUBLESHOOTING GUIDE
+================================================================================
+
+PROBLEM: "Configuration file not found: config.yaml"
+
+SOLUTION:
+   - You haven't created config.yaml yet
+   - Run: cp config.example.yaml config.yaml
+   - Edit config.yaml with your details
+
+---
+
+PROBLEM: "Authentication failed. Check your private token."
+
+SOLUTION:
+   - Your Personal Access Token is wrong or expired
+   - Generate a new token in GitLab (see section 5, Step 1)
+   - Update private_token in config.yaml
+   - Make sure you copied the entire token (no spaces)
+
+---
+
+PROBLEM: "Access forbidden. Check your permissions."
+
+SOLUTION:
+   - You don't have access to the group/project
+   - Ask your GitLab admin to grant you Reporter or higher access
+   - Verify the group/project path is correct (case-sensitive)
+
+---
+
+PROBLEM: "Group with path 'xyz' not found or not accessible"
+
+SOLUTION:
+   - Check the group path spelling (case-sensitive)
+   - Verify the group exists in GitLab
+   - Make sure you have access to view the group
+   - Try using group ID instead of path
+
+---
+
+PROBLEM: "SSL verification failed"
+
+SOLUTION:
+   For development/testing with self-signed certificates:
+   - Set verify_ssl: false in config.yaml
+   
+   For production (recommended):
+   - Ask IT to install proper SSL certificates
+   - Or add your company's CA certificate to your system
+
+---
+
+PROBLEM: "Request timed out after 15 seconds"
+
+SOLUTION:
+   - Your network is slow or GitLab is overloaded
+   - Increase timeout in config.yaml:
+     timeout_seconds: 30
+   - Check your network connection
+   - Try during off-peak hours
+
+---
+
+PROBLEM: Tool is very slow / taking forever
+
+SOLUTION:
+   Short term:
+   - Switch to "explicit" mode and list only needed repos
+   - Add exclude_project_paths for large repos
+   - Reduce number of commits per run
+   
+   Long term:
+   - Work with team to identify "core" repos for most searches
+   - Create multiple configs for different scenarios
+   - Schedule large searches during off-hours
+
+---
+
+PROBLEM: "Commit not found in any project"
+
+SOLUTION:
+   - Verify commit exists (check in GitLab web UI)
+   - Make sure you're searching the right repositories
+   - Check if commit might be in a fork or different group
+   - Verify you have access to the repository containing the commit
+   - Try with full SHA instead of short SHA
+
+---
+
+PROBLEM: CSV opens with garbled characters in Excel
+
+SOLUTION:
+   When opening in Excel:
+   1. Open Excel first (blank workbook)
+   2. Go to Data > From Text/CSV
+   3. Select your CSV file
+   4. Choose UTF-8 encoding
+   5. Click Load
+
+---
+
+PROBLEM: Results are empty but commits definitely exist
+
+SOLUTION:
+   - Run with -v flag for verbose output
+   - Check which projects are being searched
+   - Verify scan mode is correct (auto_discover vs explicit)
+   - Check filters aren't excluding relevant projects
+
+================================================================================
+10. PERFORMANCE TIPS
+================================================================================
+
+UNDERSTAND THE PERFORMANCE FORMULA:
+
+   API Calls = Number of Commits × Number of Projects
+   Time = API Calls × ~100ms per call
+
+   Examples:
+   - 10 commits × 10 projects = 100 calls = ~10 seconds
+   - 50 commits × 100 projects = 5,000 calls = ~8 minutes
+   - 100 commits × 200 projects = 20,000 calls = ~30 minutes
+
+TIPS TO SPEED UP SEARCHES:
+
+1. USE EXPLICIT MODE when possible
+   - List only the 5-10 repos you really need to check
+   - Can reduce search time from minutes to seconds
+
+2. EXCLUDE LARGE REPOSITORIES
+   - Add huge monorepos to exclude_project_paths
+   - These often have millions of commits and slow searches
+
+3. BATCH YOUR SEARCHES SMARTLY
+   - Don't search 100 commits at once
+   - Break into logical groups (e.g., by feature or sprint)
+
+4. USE INCLUDE FILTERS
+   - Create a whitelist of your most common repos
+   - Much faster than searching everything
+
+5. CREATE MULTIPLE CONFIGS
+   - config-prod.yaml: Only production repos
+   - config-dev.yaml: Only development repos
+   - config-quick.yaml: Minimal set for quick checks
+
+6. SCHEDULE LARGE SEARCHES
+   - Run big searches overnight or during lunch
+   - Use screen/tmux on Linux for background execution
+
+7. CACHE PROJECT LISTS
+   - First run in auto_discover mode takes time
+   - Subsequent explicit mode searches with same projects are faster
+
+EXAMPLE SPEED COMPARISON:
+
+   Scenario: Find 20 commits across your organization
+
+   Slow approach (auto_discover on entire organization):
+   - 150 repos discovered
+   - 20 commits × 150 repos = 3,000 calls = ~5 minutes
+
+   Fast approach (explicit mode with relevant repos):
+   - 10 specific repos
+   - 20 commits × 10 repos = 200 calls = ~20 seconds
+
+================================================================================
+11. SECURITY BEST PRACTICES
+================================================================================
+
+PROTECTING YOUR PERSONAL ACCESS TOKEN:
+
+1. NEVER commit config.yaml to Git
+   - Add config.yaml to .gitignore
+   - Only commit config.example.yaml
+
+2. NEVER share your token
+   - Each person should have their own token
+   - Don't paste tokens in Slack/Teams/email
+
+3. ROTATE tokens regularly
+   - Set expiration dates (30-90 days)
+   - Create new token when old one expires
+
+4. USE MINIMAL PERMISSIONS
+   - Only grant read_api and read_repository scopes
+   - Don't use tokens with write access for this tool
+
+5. REVOKE when leaving project
+   - Delete tokens you're no longer using
+   - Go to GitLab > Settings > Access Tokens > Revoke
+
+FOR SHARED/TEAM USAGE:
+
+1. CREATE A SERVICE ACCOUNT
+   - Don't use personal accounts for shared tools
+   - Create gitlab-commit-mapper@company.com account
+
+2. USE RESTRICTED PERMISSIONS
+   - Grant service account only Reporter role
+   - Only on groups/projects it needs
+
+3. STORE TOKENS SECURELY
+   - Use corporate secret management (Vault, etc.)
+   - Don't store in shared documents or wikis
+
+SSL VERIFICATION:
+
+- Keep verify_ssl: true in production
+- Only disable for local development with self-signed certs
+- Work with IT to install proper certificates
+
+================================================================================
+12. FAQ
+================================================================================
+
+Q: Do I need admin access to GitLab?
+A: No, you only need Reporter or Guest access to the repos you want to search.
+
+Q: Can I search across multiple GitLab instances?
+A: No, each config file works with one GitLab instance. Create separate
+   configs for different instances.
+
+Q: What if I don't know the full commit SHA?
+A: Short SHAs (7-8 characters) usually work, but full SHAs are more reliable.
+   You can get full SHAs from GitLab UI or git log.
+
+Q: Can I search by commit message instead of SHA?
+A: No, this tool requires commit SHAs. Use GitLab web UI search for
+   message-based searches.
+
+Q: Why isn't my commit found even though I can see it in GitLab?
+A: Check: 1) You have access to that repo, 2) The repo is in your search
+   scope, 3) You're using the correct SHA.
+
+Q: Can I run this tool from a Jenkins/CI pipeline?
+A: Yes, it's designed to be automation-friendly. Store the PAT as a secret
+   in your CI tool.
+
+Q: How do I search only for commits in the master branch?
+A: The tool searches all commits in all branches. After getting results,
+   filter the CSV "branches" column to find commits in master.
+
+Q: Can I search for commits by date range?
+A: No, you must provide specific commit SHAs. After getting results, you
+   can filter the CSV by created_at date.
+
+Q: What's the difference between branches and tags columns?
+A: Branches are development branches (master, develop, feature-x).
+   Tags are release markers (v1.0.0, release-2024-01).
+
+Q: Why do some commits show up in multiple projects?
+A: Common in microservices: commits to shared libraries appear in all
+   services that depend on them. Or commits were cherry-picked across repos.
+
+Q: Can I export results to Excel format instead of CSV?
+A: Currently only CSV is supported. CSV files open in Excel and work well
+   for analysis.
+
+Q: The tool is running very slow, what can I do?
+A: See section 10 (Performance Tips). Switch to explicit mode and list only
+   the repos you need, or add exclusions for large repos.
+
+Q: Can I pause and resume a long-running search?
+A: Not currently supported. For very large searches, break your commit list
+   into smaller files and run multiple searches.
+
+Q: Do I need to install anything else besides Python?
+A: No, the tool includes all dependencies. Just Python 3.10+ and pip.
+
+Q: Can I run this on Windows?
+A: Yes, it works on Windows, Mac, and Linux. Installation steps are slightly
+   different (see section 4).
+
+Q: What if my GitLab uses a non-standard port?
+A: Include the port in base_url:
+   base_url: "https://gitlab.company.com:8443"
+
+Q: Can I search archived projects?
+A: By default, archived projects are excluded. This is a GitLab API default.
+
+Q: How do I get a list of all available groups?
+A: Log into GitLab web UI, go to Groups, and browse. Copy the path from the
+   URL or group page.
+
+================================================================================
+SUPPORT
+================================================================================
+
+If you encounter issues not covered in this handbook:
+
+1. Check the README.md file for technical details
+2. Run the tool with -v flag for verbose error messages
+3. Contact Platform Engineering team:
+   - Email: platform-engineering@company.com
+   - Slack: #platform-engineering
+   - Ticket: ServiceDesk portal
+
+Include in your support request:
+- What you're trying to do
+- The exact command you ran
+- Full error message (run with -v flag)
+- Your config.yaml (with token REMOVED)
+
+================================================================================
+DOCUMENT HISTORY
+================================================================================
+
+Version 1.0.0 (2024-11):
+- Initial release
+- Auto-discover and explicit modes
+- CSV export functionality
+- Comprehensive troubleshooting guide
+
+================================================================================
+END OF HANDBOOK
+================================================================================
+

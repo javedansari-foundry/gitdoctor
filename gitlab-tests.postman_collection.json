@@ -1,0 +1,179 @@
+{
+  "info": {
+    "name": "GitDoctor - Token Tests",
+    "description": "Test your GitLab token and API access for GitDoctor",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Test GitLab Version (Basic Auth)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "PRIVATE-TOKEN",
+            "value": "YOUR_GITLAB_PERSONAL_ACCESS_TOKEN",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://gitlab.example.com/api/v4/version",
+          "protocol": "http",
+          "host": ["gitlab", "example", "com"],
+          "path": ["api", "v4", "version"]
+        },
+        "description": "Tests if GitLab API is accessible and token is valid.\n\n✅ Expected: 200 OK with version info\n❌ Got 401: Token is invalid or expired"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Get Current User Info",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "PRIVATE-TOKEN",
+            "value": "YOUR_GITLAB_PERSONAL_ACCESS_TOKEN",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://gitlab.example.com/api/v4/user",
+          "protocol": "http",
+          "host": ["gitlab", "example", "com"],
+          "path": ["api", "v4", "user"]
+        },
+        "description": "Gets information about the authenticated user.\n\n✅ Expected: 200 OK with your user details\n❌ Got 401: Token authentication failed"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Get your-group Group Info",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "PRIVATE-TOKEN",
+            "value": "YOUR_GITLAB_PERSONAL_ACCESS_TOKEN",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://gitlab.example.com/api/v4/groups/your-group",
+          "protocol": "http",
+          "host": ["gitlab", "example", "com"],
+          "path": ["api", "v4", "groups", "your-group"]
+        },
+        "description": "Tests access to the your-group group.\n\n✅ Expected: 200 OK with group details\n❌ Got 404: Group not found or no access\n❌ Got 401: Token authentication failed"
+      },
+      "response": []
+    },
+    {
+      "name": "4. List Projects in your-group",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "PRIVATE-TOKEN",
+            "value": "YOUR_GITLAB_PERSONAL_ACCESS_TOKEN",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://gitlab.example.com/api/v4/groups/your-group/projects?include_subgroups=true&per_page=10&archived=false",
+          "protocol": "http",
+          "host": ["gitlab", "example", "com"],
+          "path": ["api", "v4", "groups", "your-group", "projects"],
+          "query": [
+            {
+              "key": "include_subgroups",
+              "value": "true",
+              "description": "Include projects from subgroups"
+            },
+            {
+              "key": "per_page",
+              "value": "10",
+              "description": "Limit to 10 projects for testing"
+            },
+            {
+              "key": "archived",
+              "value": "false",
+              "description": "Exclude archived projects"
+            }
+          ]
+        },
+        "description": "Lists first 10 projects in your-group group (including subgroups).\n\n✅ Expected: 200 OK with array of projects\n❌ Got 404: Group not found\n❌ Got 401: Token authentication failed"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Get Specific Commit (Example)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "PRIVATE-TOKEN",
+            "value": "YOUR_GITLAB_PERSONAL_ACCESS_TOKEN",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://gitlab.example.com/api/v4/projects/:project_id/repository/commits/0a0876c1cfa6905acbaf5b07d6b612aad6c45ce3",
+          "protocol": "http",
+          "host": ["gitlab", "example", "com"],
+          "path": ["api", "v4", "projects", ":project_id", "repository", "commits", "0a0876c1cfa6905acbaf5b07d6b612aad6c45ce3"],
+          "variable": [
+            {
+              "key": "project_id",
+              "value": "123",
+              "description": "Replace with actual project ID from step 4"
+            }
+          ]
+        },
+        "description": "Gets details for a specific commit in a project.\n\nReplace :project_id with an actual project ID from step 4.\n\n✅ Expected: 200 OK with commit details\n❌ Got 404: Commit not found in this project\n❌ Got 401: Token authentication failed"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Get Commit Refs (Branches & Tags)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "PRIVATE-TOKEN",
+            "value": "YOUR_GITLAB_PERSONAL_ACCESS_TOKEN",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://gitlab.example.com/api/v4/projects/:project_id/repository/commits/0a0876c1cfa6905acbaf5b07d6b612aad6c45ce3/refs",
+          "protocol": "http",
+          "host": ["gitlab", "example", "com"],
+          "path": ["api", "v4", "projects", ":project_id", "repository", "commits", "0a0876c1cfa6905acbaf5b07d6b612aad6c45ce3", "refs"],
+          "variable": [
+            {
+              "key": "project_id",
+              "value": "123",
+              "description": "Replace with actual project ID"
+            }
+          ]
+        },
+        "description": "Gets all branches and tags containing this commit.\n\n✅ Expected: 200 OK with array of refs (branches/tags)\n❌ Got 404: Commit not found\n❌ Got 401: Token authentication failed"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://gitlab.example.com",
+      "type": "string"
+    },
+    {
+      "key": "api_version",
+      "value": "v4",
+      "type": "string"
+    }
+  ]
+}
+

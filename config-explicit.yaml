@@ -1,0 +1,85 @@
+# GitDoctor Configuration - EXPLICIT MODE
+# Example configuration for GitDoctor. Copy this file and customize for your environment.
+# Fast configuration for searching specific repositories only
+
+# GitLab connection settings
+gitlab:
+  base_url: "https://gitlab.example.com"
+  private_token: "YOUR_GITLAB_PERSONAL_ACCESS_TOKEN"
+  api_version: "v4"
+  verify_ssl: true
+  timeout_seconds: 15
+
+# Scan mode configuration
+scan:
+  # EXPLICIT MODE: Only search the projects listed below
+  # Much faster than auto_discover!
+  mode: "explicit"
+
+# Explicitly configured projects to search
+projects:
+  # Option 1: List projects by their full path (RECOMMENDED)
+  by_path:
+    # Replace these examples with your actual project paths
+    # Get paths from: python list_projects.py
+    # Or from: results.csv (project_path column)
+    # Or from: GitLab web UI URL
+    
+    # Example format: "group/subgroup/project-name"
+    - "your-group/backend/payments-service"
+    - "your-group/backend/notifications-service"
+    - "your-group/frontend/web-app"
+    # Add more projects here...
+  
+  # Option 2: List projects by their numeric ID (alternative)
+  by_id: []
+    # - 123
+    # - 456
+
+# Groups section (not used in explicit mode)
+groups:
+  include_subgroups: true
+  by_path: []
+  by_id: []
+
+# Optional filters (apply even in explicit mode)
+filters:
+  # Include only these specific paths (whitelist)
+  include_project_paths: []
+  
+  # Exclude specific paths (blacklist)
+  exclude_project_paths: []
+
+
+# ==================== USAGE INSTRUCTIONS ====================
+# 
+# 1. Find your project paths:
+#    python list_projects.py
+#    OR
+#    Check results.csv from your previous run
+#    OR
+#    Copy from GitLab web UI URLs
+#
+# 2. Add project paths above under projects.by_path
+#
+# 3. Run with this config:
+#    gitdoctor -c config-explicit.yaml -i commits.txt -o results.csv -v
+#
+# 4. SPEED:
+#    - 10 projects × 4 commits = ~10-15 seconds
+#    - 20 projects × 4 commits = ~20-30 seconds
+#    - Much faster than auto-discover mode!
+#
+# ==================== TIPS ====================
+#
+# TIP 1: Create different configs for different scenarios
+#   - config-production.yaml (only prod repos)
+#   - config-backend.yaml (only backend services)
+#   - config-critical.yaml (top 5 critical services)
+#
+# TIP 2: Start with 10-15 most important projects
+#
+# TIP 3: Use projects.by_path (easier to read than IDs)
+#
+# TIP 4: Check projects_list.txt for all available projects
+
