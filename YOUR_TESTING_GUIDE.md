@@ -74,6 +74,26 @@ private_token: "glpat-xxxxxxxxxxxxxxxxxxxx"
 
 ⚠️ **IMPORTANT**: Never commit this file to git! It's already in .gitignore.
 
+### ⚠️ Common Configuration Mistake - YAML Syntax
+
+Make sure your config.yaml uses proper YAML list syntax:
+
+```yaml
+# ✅ CORRECT - Use dashes:
+projects:
+  by_path:
+    - "dfs-core/project1"
+    - "dfs-core/project2"
+
+# ❌ WRONG - Don't use commas:
+projects:
+  by_path:
+    "dfs-core/project1",
+    "dfs-core/project2"
+```
+
+If you see error "explicit mode requires at least one project", check for this syntax error!
+
 ## 🚀 Step 3: Run Your First Test
 
 Now let's test the tool with your real GitLab!
@@ -401,6 +421,7 @@ If you encounter issues:
 2. **Check logs**: Look for specific error messages
 3. **Verify manually**: Check one commit in GitLab web UI
 4. **Review docs**:
+   - **TROUBLESHOOTING.md** - Complete troubleshooting guide ⭐
    - README.md - Technical reference
    - CONFLUENCE_HANDBOOK.txt - User guide
    - INTEGRATION_TESTING_GUIDE.md - Detailed troubleshooting

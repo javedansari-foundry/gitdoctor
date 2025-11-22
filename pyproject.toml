@@ -49,11 +49,3 @@ addopts = "-v --tb=short"
 
 [tool.coverage.run]
 source = ["gitdoctor"]
-
-[project.optional-dependencies]
-dev = [
-  "pytest",
-  "pytest-cov",
-  "responses",
-]
-

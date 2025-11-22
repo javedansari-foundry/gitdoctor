@@ -395,9 +395,10 @@ gitdoctor -i commits-release-v2.5.txt -o release-v2.5-audit.csv
 If you encounter issues during integration testing:
 
 1. **Run with verbose flag**: `gitdoctor -i test.txt -o out.csv -v`
-2. **Check the README.md**: Comprehensive troubleshooting section
-3. **Review CONFLUENCE_HANDBOOK.txt**: User-friendly explanations
-4. **Contact support**: Include verbose output and config (with token removed!)
+2. **Check TROUBLESHOOTING.md**: Dedicated troubleshooting guide with solutions
+3. **Check the README.md**: Comprehensive troubleshooting section
+4. **Review CONFLUENCE_HANDBOOK.txt**: User-friendly explanations
+5. **Contact support**: Include verbose output and config (with token removed!)
 
 ## Security Reminder
 

@@ -415,6 +415,79 @@ gitdoctor/
 
 ## Troubleshooting
 
+> 📖 **For detailed troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
+
+### Installation Errors
+
+#### Error: "Cannot declare ('project', 'optional-dependencies') twice"
+
+**Problem:** Duplicate sections in `pyproject.toml`
+
+**Solution:**
+```bash
+# The pyproject.toml file has been fixed, but if you see this:
+pip install -e .  # Should work now
+```
+
+If you still encounter this, check `pyproject.toml` for duplicate `[project.optional-dependencies]` sections.
+
+#### Error: "command 'gitdoctor' not found"
+
+**Problem:** Package not installed or virtual environment not activated
+
+**Solutions:**
+```bash
+# 1. Ensure virtual environment is activated
+source venv/bin/activate  # On Mac/Linux
+# venv\Scripts\activate  # On Windows
+
+# 2. Install the package
+pip install -e .
+
+# 3. Verify installation
+which gitdoctor  # Should show path in venv/bin/
+gitdoctor --version  # Should show version
+```
+
+### Configuration Errors
+
+#### Error: "In explicit mode, at least one project must be configured"
+
+**Problem:** YAML list syntax error in `config.yaml` - using commas instead of dashes
+
+**Solution:**
+```yaml
+# ❌ WRONG - Don't use commas:
+projects:
+  by_path:
+    "group/project1",
+    "group/project2",
+    "group/project3"
+
+# ✅ CORRECT - Use dashes:
+projects:
+  by_path:
+    - "group/project1"
+    - "group/project2"
+    - "group/project3"
+```
+
+**Important:** YAML lists require a dash (`-`) before each item, not commas!
+
+#### Error: "In auto_discover mode, at least one group must be configured"
+
+**Problem:** Similar YAML syntax error or empty groups configuration
+
+**Solution:**
+```yaml
+# ✅ CORRECT format:
+groups:
+  by_path:
+    - "your-group-name"
+    - "another-group"
+  by_id: []  # Empty list if not using IDs
+```
+
 ### Authentication Errors (401)
 
 **Problem:** `GitLabUnauthorized: Authentication failed`

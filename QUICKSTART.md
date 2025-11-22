@@ -17,7 +17,15 @@ venv\Scripts\activate  # On Windows
 
 # Install the tool
 pip install -e .
+
+# Verify installation
+gitdoctor --version
 ```
+
+**⚠️ If you see errors during installation:**
+- Make sure you're in the virtual environment (you should see `(venv)` in your terminal)
+- If you see "Cannot declare...twice" error, the pyproject.toml has been fixed - try again
+- See README.md → Troubleshooting → Installation Errors
 
 ## Configuration
 
@@ -30,6 +38,17 @@ cp config.example.yaml config.yaml
 # 2. Your Personal Access Token (private_token)
 # 3. Choose mode: auto_discover or explicit
 # 4. Add your groups (auto_discover) or projects (explicit)
+
+# ⚠️ IMPORTANT - Use proper YAML list syntax:
+# ✅ CORRECT:
+#   by_path:
+#     - "group/project1"
+#     - "group/project2"
+#
+# ❌ WRONG (don't use commas):
+#   by_path:
+#     "group/project1",
+#     "group/project2"
 ```
 
 ## Usage
@@ -49,8 +68,10 @@ gitdoctor -i commits.txt -o results.csv
 
 ## Need Help?
 
+- **Common issues & errors**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) ⭐
 - **Installation issues**: See README.md → Installation section
-- **Configuration help**: See INTEGRATION_TESTING_GUIDE.md
+- **Configuration help**: See [INTEGRATION_TESTING_GUIDE.md](INTEGRATION_TESTING_GUIDE.md)
+- **Quick setup**: See [QUICKSTART.md](QUICKSTART.md)
 - **Usage examples**: See CONFLUENCE_HANDBOOK.txt
 - **API/technical details**: See README.md
 
