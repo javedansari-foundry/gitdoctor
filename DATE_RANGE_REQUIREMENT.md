@@ -34,15 +34,15 @@ Date range is now **OPTIONAL** for delta discovery. The new paginated API approa
 ```bash
 # Get ALL commits between two refs
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o delta-report.csv \
   -v
 
 # With optional date filter
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   --after 2025-09-01 \
   --before 2025-11-01 \
   -o test-report.html \

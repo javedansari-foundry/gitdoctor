@@ -93,9 +93,9 @@ pip install -e .
 # ❌ WRONG - Don't use commas
 projects:
   by_path:
-    "dfs-core/project1",
-    "dfs-core/project2",
-    "dfs-core/project3"
+    "myorg/backend/user-service",
+    "myorg/backend/order-service",
+    "myorg/backend/api-gateway"
 ```
 
 **Fix:**
@@ -103,9 +103,9 @@ projects:
 # ✅ CORRECT - Use dashes (-)
 projects:
   by_path:
-    - "dfs-core/project1"
-    - "dfs-core/project2"
-    - "dfs-core/project3"
+    - "myorg/backend/user-service"
+    - "myorg/backend/order-service"
+    - "myorg/backend/api-gateway"
 ```
 
 **Why?** YAML requires a dash (`-`) prefix for each list item. Commas are NOT valid YAML list syntax.
@@ -261,12 +261,12 @@ gitdoctor -c /path/to/config.yaml -i commits.txt -o results.csv
 
 1. **Verify path from GitLab URL:**
    ```
-   URL:  https://gitlab.example.com/dfs-core/backend/api-service
-   Path: dfs-core/backend/api-service
+   URL:  https://gitlab.example.com/myorg/backend/api-service
+   Path: myorg/backend/api-service
    ```
 
 2. **Check for typos (case-sensitive):**
-   - `dfs-core/DevOps` ≠ `dfs-core/devops`
+   - `myorg/DevOps` ≠ `myorg/devops`
 
 3. **Try using project ID instead:**
    ```yaml

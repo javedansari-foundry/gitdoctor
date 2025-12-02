@@ -624,7 +624,7 @@ Examples:
 
   # Compare specific projects only (overrides config)
   gitdoctor delta --base TAG1 --target TAG2 \\
-                  --projects "dfs-core/soe,dfs-core/api" \\
+                  --projects "myorg/backend/user-service,myorg/backend/api" \\
                   -o delta.csv
 
   # Compare by project IDs
@@ -695,7 +695,7 @@ Note: Uses paginated API - handles large repositories without timeouts.
     delta_parser.add_argument(
         "--projects",
         help="Comma-separated list of project paths to compare (overrides config). "
-             "Example: --projects 'dfs-core/soe,dfs-core/api'"
+             "Example: --projects 'myorg/backend/user-service,myorg/backend/api'"
     )
 
     delta_parser.add_argument(

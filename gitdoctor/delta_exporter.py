@@ -21,7 +21,7 @@ class DeltaCSVExporter:
     """
     Exports delta results to CSV format.
     
-    CSV format matches the structure described in the PE team's guide,
+    CSV format matches the standard delta export structure,
     with all necessary columns for analysis.
     """
     

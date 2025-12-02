@@ -35,8 +35,8 @@ gitdoctor delta \
 
 ```bash
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o release-report.html \
   --format html \
   --jira-url https://jira.company.com \
@@ -169,8 +169,8 @@ MON-12346: 2 commit(s) in 1 project(s)
 ```bash
 # Generate HTML report with JIRA links and send Slack notification
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o release-v11-report.html \
   --format html \
   --jira-url https://jira.company.com \

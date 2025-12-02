@@ -5,7 +5,7 @@ Your configuration is now set up! Here's how to test it.
 ## ✅ Configuration Status
 
 Your `config.yaml` now includes:
-- ✅ **JIRA URL:** `https://comviva.atlassian.net`
+- ✅ **JIRA URL:** `https://jira.example.com`
 - ✅ **JIRA Project Key:** `MON` (will extract MON-* tickets)
 - ✅ **Teams Webhook:** Configured (Power Automate webhook)
 
@@ -14,20 +14,20 @@ Your `config.yaml` now includes:
 ### Test 1: Basic Delta with JIRA & Teams (from config)
 
 ```bash
-cd /Users/comviva/GitDoctor/gitdoctor
+cd /path/to/gitdoctor
 source venv/bin/activate
 
 # This will automatically use JIRA and Teams from config.yaml
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o test-full-report.html \
   --format html \
   -v
 ```
 
 **What this does:**
-- ✅ Uses JIRA URL from config (`https://comviva.atlassian.net`)
+- ✅ Uses JIRA URL from config (`https://jira.example.com`)
 - ✅ Extracts MON-* tickets from commits
 - ✅ Sends notification to Teams
 - ✅ Generates HTML report with JIRA links
@@ -37,8 +37,8 @@ gitdoctor delta \
 ```bash
 # Generate CSV with JIRA ticket columns
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o test-with-jira.csv \
   -v
 ```
@@ -57,8 +57,8 @@ cat test-with-jira.csv | cut -d',' -f21 | head -10
 ```bash
 # Override project key from command line
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o test.csv \
   --jira-project JIRA \
   -v
@@ -73,7 +73,7 @@ This will use JIRA URL from config but override project key to extract JIRA-* ti
 1. **JIRA Integration Message:**
    ```
    JIRA integration enabled - extracting ticket references
-     Using JIRA URL from config: https://comviva.atlassian.net
+     Using JIRA URL from config: https://jira.example.com
      Using JIRA project key from config: MON
    ```
 
@@ -83,9 +83,9 @@ This will use JIRA URL from config but override project key to extract JIRA-* ti
    JIRA Tickets Found
    ============================================================
    MON-12345: 5 commit(s) in 3 project(s)
-     URL: https://comviva.atlassian.net/browse/MON-12345
+     URL: https://jira.example.com/browse/MON-12345
    MON-12346: 2 commit(s) in 1 project(s)
-     URL: https://comviva.atlassian.net/browse/MON-12346
+     URL: https://jira.example.com/browse/MON-12346
    ============================================================
    ```
 
@@ -100,7 +100,7 @@ This will use JIRA URL from config but override project key to extract JIRA-* ti
 
 - Clickable JIRA ticket badges in commits table
 - Dedicated "JIRA Tickets" section
-- All MON-* tickets linked to `https://comviva.atlassian.net/browse/MON-XXXXX`
+- All MON-* tickets linked to `https://jira.example.com/browse/MON-XXXXX`
 
 ### In CSV:
 
@@ -119,7 +119,7 @@ This will use JIRA URL from config but override project key to extract JIRA-* ti
 
 After running, open the HTML report and click on any JIRA ticket badge. It should open:
 ```
-https://comviva.atlassian.net/browse/MON-XXXXX
+https://jira.example.com/browse/MON-XXXXX
 ```
 
 ### Check 2: Teams Notification
@@ -144,8 +144,8 @@ head -1 test-with-jira.csv | tr ',' '\n' | grep -n jira
 
 ```bash
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o quick-test.html \
   --format html \
   -v
@@ -163,12 +163,12 @@ This single command will:
 
 ## 📝 Configuration Location
 
-All settings are in: `/Users/comviva/GitDoctor/gitdoctor/config.yaml`
+All settings are in: `/path/to/gitdoctor/config.yaml`
 
 **JIRA Section:**
 ```yaml
 jira:
-  base_url: "https://comviva.atlassian.net"
+  base_url: "https://jira.example.com"
   project_key: "MON"
 ```
 

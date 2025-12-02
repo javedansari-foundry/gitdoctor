@@ -39,8 +39,8 @@ JIRA integration in GitDoctor **does NOT require any access tokens or authentica
 ```bash
 # Test with your JIRA URL
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o test-with-jira.csv \
   --jira-url https://YOUR_JIRA_URL_HERE \
   --jira-project MON \
@@ -98,8 +98,8 @@ gitdoctor delta \
 ```bash
 # Test with your Teams webhook
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o test-delta.csv \
   --teams-webhook https://outlook.office.com/webhook/YOUR_WEBHOOK_URL \
   -v
@@ -141,8 +141,8 @@ If you prefer email instead of Teams, you can use SMTP:
 ```bash
 # Full featured command with JIRA and Teams
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o release-report.html \
   --format html \
   --jira-url https://YOUR_JIRA_URL \

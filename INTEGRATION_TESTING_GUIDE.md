@@ -39,7 +39,7 @@ Best for: Comprehensive testing across multiple repositories
 
 You need:
 - **Group path**: Found in GitLab URL when viewing the group
-  - Example: `https://gitlab.company.com/dfs-core/devops` → group path is `dfs-core/devops`
+  - Example: `https://gitlab.company.com/myorg/backend` → group path is `myorg/backend`
 
 #### Option B: Test with Specific Projects (Explicit Mode)
 
@@ -47,7 +47,7 @@ Best for: Faster, targeted testing
 
 You need:
 - **Project paths**: Found in GitLab URL or project settings
-  - Example: `https://gitlab.company.com/dfs-core/devops/my-app` → project path is `dfs-core/devops/my-app`
+  - Example: `https://gitlab.company.com/myorg/backend/my-app` → project path is `myorg/backend/my-app`
   - Get 2-3 project paths for testing
 
 ### Step 3: Get Test Commit SHAs
@@ -93,7 +93,7 @@ scan:
 groups:
   include_subgroups: true  # Set to false if you only want the main group
   by_path:
-    - "YOUR_GROUP_PATH_HERE"  # e.g., dfs-core/devops
+    - "YOUR_GROUP_PATH_HERE"  # e.g., myorg/backend
 
 # Optional: Add filters to speed up first test
 filters:
@@ -115,8 +115,8 @@ scan:
 
 projects:
   by_path:
-    - "YOUR_PROJECT_PATH_1"  # e.g., dfs-core/devops/project1
-    - "YOUR_PROJECT_PATH_2"  # e.g., dfs-core/devops/project2
+    - "YOUR_PROJECT_PATH_1"  # e.g., myorg/backend/project1
+    - "YOUR_PROJECT_PATH_2"  # e.g., myorg/backend/project2
     - "YOUR_PROJECT_PATH_3"  # Add 2-3 projects
 ```
 

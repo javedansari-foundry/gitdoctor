@@ -26,7 +26,7 @@ Given a list of Git commit SHAs, this tool:
 4. Outputs a CSV file with all findings
 
 This is particularly useful for:
-- **Platform Engineering**: Track which commits made it into which environments
+- **DevOps Teams**: Track which commits made it into which environments
 - **QA Teams**: Verify commit presence across multiple repositories
 - **Release Management**: Identify branch and tag relationships for commits, discover deltas between releases
 - **Audit & Compliance**: Generate reports on code deployment across repositories
@@ -176,8 +176,8 @@ groups:
   by_id:
     - 42      # GitLab group ID
   by_path:
-    - "dfs-core"
-    - "dfs-core/devops"
+    - "myorg"
+    - "myorg/backend"
 ```
 
 #### Filters Section
@@ -320,9 +320,9 @@ The tool generates a CSV file with the following columns:
 
 ```csv
 commit_sha,project_id,project_name,project_path,branches,tags,found
-abc123,123,my-app,dfs-core/apps/my-app,main|develop|feature-x,v1.0.0|v1.1.0,true
-abc123,124,common-lib,dfs-core/libs/common,master,v2.3.0,true
-def456,123,my-app,dfs-core/apps/my-app,hotfix-branch,,true
+abc123,123,my-app,myorg/apps/my-app,main|develop|feature-x,v1.0.0|v1.1.0,true
+abc123,124,common-lib,myorg/libs/common,master,v2.3.0,true
+def456,123,my-app,myorg/apps/my-app,hotfix-branch,,true
 ```
 
 ## Configuration Examples
@@ -340,11 +340,11 @@ scan:
 groups:
   include_subgroups: true
   by_path:
-    - "dfs-core/devops"
+    - "myorg/backend"
 ```
 
 This configuration will:
-- Auto-discover all projects in `dfs-core/devops` and its subgroups
+- Auto-discover all projects in `myorg/backend` and its subgroups
 - Search each commit across all discovered projects
 
 ### Example 2: Search Only Specific Projects
@@ -359,9 +359,9 @@ scan:
 
 projects:
   by_path:
-    - "dfs-core/devops/multinode_deployment"
-    - "dfs-core/devops/ansible_configs"
-    - "dfs-core/devops/docker_images"
+    - "myorg/backend/user-service"
+    - "myorg/backend/order-service"
+    - "myorg/backend/api-gateway"
 ```
 
 This configuration will:
@@ -380,16 +380,16 @@ scan:
 
 groups:
   by_path:
-    - "dfs-core"
+    - "myorg"
 
 filters:
   exclude_project_paths:
-    - "dfs-core/archived/old-project"
-    - "dfs-core/monorepo-with-million-commits"
+    - "myorg/archived/old-project"
+    - "myorg/monorepo-with-million-commits"
 ```
 
 This configuration will:
-- Discover all projects in `dfs-core`
+- Discover all projects in `myorg`
 - Skip the two excluded projects for better performance
 
 ## Performance Considerations
@@ -630,8 +630,8 @@ MIT License - see LICENSE file for details
 
 For issues and questions:
 1. Check the Troubleshooting section above
-2. Review CONFLUENCE_HANDBOOK.txt for detailed workflows
-3. Contact the Platform Engineering team
+2. Review the documentation in this repository
+3. Open an issue on GitHub for support
 
 ## Changelog
 

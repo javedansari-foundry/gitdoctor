@@ -57,8 +57,8 @@ class DeltaFinder:
         This is the main entry point for delta discovery.
         
         Args:
-            base_ref: Starting reference (e.g., "MobiquityPay_vX.10.15.2_PVG.B1")
-            target_ref: Ending reference (e.g., "MobiquityPay_v11.0.0_20250908_PVG.B1")
+            base_ref: Starting reference (e.g., "release-v1.0.0")
+            target_ref: Ending reference (e.g., "release-v2.0.0")
             after_date: Optional ISO 8601 date - only include commits after this
             before_date: Optional ISO 8601 date - only include commits before this
             

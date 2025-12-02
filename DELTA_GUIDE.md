@@ -88,18 +88,18 @@ gitdoctor delta --base BASE_REF --target TARGET_REF [OPTIONS]
 ```bash
 # See ALL changes between two production releases
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
-  -o release-v11-delta.csv \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
+  -o release-delta.csv \
   -v
 
 # Or with optional date filter to narrow results
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   --after 2025-09-01 \
   --before 2025-11-01 \
-  -o release-v11-delta.csv \
+  -o release-delta.csv \
   -v
 ```
 
@@ -110,25 +110,25 @@ GitDoctor v1.0.0
 ============================================================
 Loading configuration from config.yaml
   Mode: explicit
-  GitLab: http://blrgitlab.comviva.com
+  GitLab: https://gitlab.example.com
 Initializing GitLab API client
 Testing GitLab connection...
   Connection successful
 Resolving projects to compare...
   Will compare across 3 projects
-Finding delta from 'MobiquityPay_vX.10.15.2_PVG.B1' to 'MobiquityPay_v11.0.0_20250908_PVG.B1'...
-[1/3] Comparing in dfs-core/mobiquity-one-issuing/microservices/soe
+Finding delta from 'release-v1.0.0' to 'release-v2.0.0'...
+[1/3] Comparing in myorg/backend/user-service
   ✓ Found 45 commits
-[2/3] Comparing in dfs-core/orchestration/soe
+[2/3] Comparing in myorg/backend/order-service
   ✓ Found 32 commits
-[3/3] Comparing in dfs-core/sdui/projects/mobiquity/mobiquity-sdui-screens
-  ⊘ Base ref 'MobiquityPay_vX.10.15.2_PVG.B1' not found (skipped)
+[3/3] Comparing in myorg/frontend/web-app
+  ⊘ Base ref 'release-v1.0.0' not found (skipped)
 
 ============================================================
 Delta Discovery Summary
 ============================================================
-Base Reference:          MobiquityPay_vX.10.15.2_PVG.B1
-Target Reference:        MobiquityPay_v11.0.0_20250908_PVG.B1
+Base Reference:          release-v1.0.0
+Target Reference:        release-v2.0.0
 Projects Searched:       3
 Projects with Changes:   2
 Projects without Changes: 0
@@ -139,8 +139,8 @@ Total Files Changed:     245
 Unique Authors:          12
 
 Top 5 Projects by Commit Count:
-  1. dfs-core/mobiquity-one-issuing/microservices/soe: 45 commits
-  2. dfs-core/orchestration/soe: 32 commits
+  1. myorg/backend/user-service: 45 commits
+  2. myorg/backend/order-service: 32 commits
 ============================================================
 ```
 
@@ -216,7 +216,7 @@ The CSV file contains one row per commit, with these columns:
 
 | Column | Description |
 |--------|-------------|
-| `project_path` | Full project path (e.g., `dfs-core/backend/soe`) |
+| `project_path` | Full project path (e.g., `myorg/backend/user-service`) |
 | `project_name` | Project name |
 | `project_id` | GitLab project ID |
 | `project_web_url` | URL to the project |
@@ -243,7 +243,7 @@ The CSV file contains one row per commit, with these columns:
 ### Example CSV Row
 
 ```csv
-dfs-core/backend/soe,SOE,9795,http://gitlab.com/dfs-core/backend/soe,v1.0.0,v2.0.0,true,true,0a0876c1cfa6905acbaf5b07d6b612aad6c45ce3,0a0876c1,MON-117814|Saumya|add changes to fetch language,MON-117814|Saumya|add changes to fetch language from request payload,Saumya Mishra,saumya.mishra@comviva.com,2025-09-02T17:44:38.000+05:30,2025-09-02T17:44:38.000+05:30,Saumya Mishra,saumya.mishra@comviva.com,http://gitlab.com/dfs-core/backend/soe/commit/0a0876c1,parent1|parent2,false,false,
+myorg/backend/user-service,user-service,123,https://gitlab.example.com/myorg/backend/user-service,v1.0.0,v2.0.0,true,true,0a0876c1cfa6905acbaf5b07d6b612aad6c45ce3,0a0876c1,PROJ-123|Add user authentication,PROJ-123|Add user authentication feature,John Doe,john.doe@example.com,2025-09-02T17:44:38.000+05:30,2025-09-02T17:44:38.000+05:30,John Doe,john.doe@example.com,https://gitlab.example.com/myorg/backend/user-service/commit/0a0876c1,parent1|parent2,false,false,
 ```
 
 ### JSON Output
@@ -254,10 +254,10 @@ JSON format provides a structured representation:
 [
   {
     "project": {
-      "id": 9795,
-      "name": "SOE",
-      "path": "dfs-core/backend/soe",
-      "web_url": "http://gitlab.com/dfs-core/backend/soe"
+      "id": 123,
+      "name": "user-service",
+      "path": "myorg/backend/user-service",
+      "web_url": "https://gitlab.example.com/myorg/backend/user-service"
     },
     "comparison": {
       "base_ref": "v1.0.0",
@@ -276,10 +276,10 @@ JSON format provides a structured representation:
       {
         "sha": "0a0876c1cfa6905acbaf5b07d6b612aad6c45ce3",
         "short_id": "0a0876c1",
-        "title": "MON-117814|Saumya|add changes to fetch language",
+        "title": "PROJ-123|Add user authentication",
         "author": {
-          "name": "Saumya Mishra",
-          "email": "saumya.mishra@comviva.com",
+          "name": "John Doe",
+          "email": "john.doe@example.com",
           "date": "2025-09-02T17:44:38.000+05:30"
         }
       }
@@ -302,9 +302,9 @@ scan:
 
 projects:
   by_path:
-    - "dfs-core/backend/soe"
-    - "dfs-core/backend/api-gateway"
-    - "dfs-core/frontend/web-app"
+    - "myorg/backend/user-service"
+    - "myorg/backend/api-gateway"
+    - "myorg/frontend/web-app"
 ```
 
 ### For Auto-Discover Mode
@@ -315,7 +315,7 @@ scan:
 
 groups:
   by_path:
-    - "dfs-core"
+    - "myorg"
   include_subgroups: true
 ```
 
@@ -329,8 +329,8 @@ The `--base` and `--target` arguments accept:
 
 ### 1. **Tags** (Most Common)
 ```bash
---base MobiquityPay_vX.10.15.2_PVG.B1
---target MobiquityPay_v11.0.0_20250908_PVG.B1
+--base release-v1.0.0
+--target release-v2.0.0
 ```
 
 ### 2. **Branches**
@@ -669,11 +669,11 @@ gitdoctor delta \
 # OLD WAY (manual, error-prone, time-consuming)
 cd project1
 git fetch --tags
-git log MobiquityPay_vX.10.15.2_PVG.B1..MobiquityPay_v11.0.0_20250908_PVG.B1 > ../changes.txt
+git log release-v1.0.0..release-v2.0.0 > ../changes.txt
 
 cd ../project2
 git fetch --tags
-git log MobiquityPay_vX.10.15.2_PVG.B1..MobiquityPay_v11.0.0_20250908_PVG.B1 >> ../changes.txt
+git log release-v1.0.0..release-v2.0.0 >> ../changes.txt
 
 # ... repeat for 20+ projects ...
 ```
@@ -683,8 +683,8 @@ git log MobiquityPay_vX.10.15.2_PVG.B1..MobiquityPay_v11.0.0_20250908_PVG.B1 >> 
 ```bash
 # Using GitDoctor (automated, comprehensive, fast)
 gitdoctor delta \
-  --base MobiquityPay_vX.10.15.2_PVG.B1 \
-  --target MobiquityPay_v11.0.0_20250908_PVG.B1 \
+  --base release-v1.0.0 \
+  --target release-v2.0.0 \
   -o delta.csv
 ```
 

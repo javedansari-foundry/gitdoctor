@@ -82,14 +82,14 @@ Make sure your config.yaml uses proper YAML list syntax:
 # ✅ CORRECT - Use dashes:
 projects:
   by_path:
-    - "dfs-core/project1"
-    - "dfs-core/project2"
+    - "myorg/backend/user-service"
+    - "myorg/backend/order-service"
 
 # ❌ WRONG - Don't use commas:
 projects:
   by_path:
-    "dfs-core/project1",
-    "dfs-core/project2"
+    "myorg/backend/user-service",
+    "myorg/backend/order-service"
 ```
 
 If you see error "explicit mode requires at least one project", check for this syntax error!

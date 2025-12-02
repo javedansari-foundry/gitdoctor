@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "gitdoctor"
 version = "1.0.0"
 description = "GitDoctor - A CLI tool to map Git commit SHAs to GitLab repositories with rich metadata"
-authors = [{name = "Platform Engineering Team"}]
+authors = [{name = "GitDoctor Contributors"}]
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
