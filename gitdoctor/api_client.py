@@ -3,6 +3,7 @@ GitLab API client module.
 
 Provides a wrapper around the GitLab v4 API with error handling and pagination support.
 """
+from __future__ import annotations
 
 from typing import Dict, List, Any, Optional
 from urllib.parse import quote
@@ -316,6 +317,154 @@ class GitLabClient:
             params["type"] = ref_type
         
         return self._get_paginated(endpoint, params=params)
+
+    def list_commits_from_ref(
+        self,
+        project_id: int,
+        ref_name: str,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        per_page: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        List all commits reachable from a ref (branch/tag/commit) with pagination.
+        
+        This method fetches commits in pages to avoid timeouts with large repositories.
+        Used for delta discovery via set difference algorithm.
+        
+        Args:
+            project_id: GitLab project ID
+            ref_name: Branch name, tag name, or commit SHA to list commits from
+            since: Only commits after this date (ISO 8601 format, e.g., "2025-01-01T00:00:00Z")
+            until: Only commits before this date (ISO 8601 format)
+            per_page: Items per page (max 100)
+        
+        Returns:
+            List of commit data dictionaries, each containing:
+            - id: Full commit SHA
+            - short_id: Short commit SHA
+            - title: Commit title (first line of message)
+            - message: Full commit message
+            - author_name, author_email, authored_date
+            - committer_name, committer_email, committed_date
+            - parent_ids: List of parent commit SHAs
+            - web_url: URL to view commit in GitLab
+        
+        Raises:
+            GitLabNotFound: If project or ref doesn't exist
+            GitLabAPIError: For other API errors
+        
+        Example:
+            >>> commits = client.list_commits_from_ref(123, "v2.0.0")
+            >>> print(f"Found {len(commits)} commits")
+        """
+        endpoint = f"projects/{project_id}/repository/commits"
+        params = {
+            "ref_name": ref_name,
+        }
+        
+        if since:
+            params["since"] = since
+        if until:
+            params["until"] = until
+        
+        return self._get_paginated(endpoint, params=params, per_page=per_page)
+
+    def compare_refs(
+        self,
+        project_id: int,
+        from_ref: str,
+        to_ref: str,
+        straight: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Compare two refs (tags/branches/commits) in a project.
+        
+        DEPRECATED: This method uses GitLab's compare API which times out with
+        large commit volumes. Use list_commits_from_ref() with set difference
+        algorithm instead for reliable delta discovery.
+        
+        Args:
+            project_id: GitLab project ID
+            from_ref: Starting reference (base tag/branch/commit)
+            to_ref: Ending reference (target tag/branch/commit)
+            straight: If True, compare directly. If False, find merge base first.
+        
+        Returns:
+            Dictionary containing:
+            - commits: List of commit objects
+            - diffs: List of file changes
+            - compare_timeout: Boolean indicating if comparison timed out
+            - compare_same_ref: Boolean indicating if refs are identical
+        
+        Raises:
+            GitLabNotFound: If project or refs don't exist
+            GitLabAPIError: For other API errors
+        """
+        endpoint = f"projects/{project_id}/repository/compare"
+        params = {
+            "from": from_ref,
+            "to": to_ref,
+            "straight": str(straight).lower()  # Convert to "true"/"false"
+        }
+        
+        response = self._make_request("GET", endpoint, params=params)
+        return response.json()
+
+    def get_tag(self, project_id: int, tag_name: str) -> Dict[str, Any]:
+        """
+        Get information about a specific tag.
+        
+        Args:
+            project_id: GitLab project ID
+            tag_name: Name of the tag
+        
+        Returns:
+            Dictionary with tag information including:
+            - name: Tag name
+            - message: Tag message
+            - target: Commit SHA the tag points to
+            - commit: Commit details
+            - release: Release information if any
+        
+        Raises:
+            GitLabNotFound: If project or tag doesn't exist
+            GitLabAPIError: For other API errors
+        """
+        # URL encode the tag name to handle special characters
+        encoded_tag = quote(tag_name, safe='')
+        endpoint = f"projects/{project_id}/repository/tags/{encoded_tag}"
+        
+        response = self._make_request("GET", endpoint)
+        return response.json()
+
+    def get_branch(self, project_id: int, branch_name: str) -> Dict[str, Any]:
+        """
+        Get information about a specific branch.
+        
+        Args:
+            project_id: GitLab project ID
+            branch_name: Name of the branch
+        
+        Returns:
+            Dictionary with branch information including:
+            - name: Branch name
+            - commit: Latest commit details
+            - merged: Whether branch is merged
+            - protected: Whether branch is protected
+            - developers_can_push: Push permissions
+            - developers_can_merge: Merge permissions
+        
+        Raises:
+            GitLabNotFound: If project or branch doesn't exist
+            GitLabAPIError: For other API errors
+        """
+        # URL encode the branch name to handle special characters (e.g., "feature/my-branch")
+        encoded_branch = quote(branch_name, safe='')
+        endpoint = f"projects/{project_id}/repository/branches/{encoded_branch}"
+        
+        response = self._make_request("GET", endpoint)
+        return response.json()
 
     def test_connection(self) -> bool:
         """

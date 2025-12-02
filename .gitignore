@@ -40,7 +40,9 @@ htmlcov/
 
 # Configuration with secrets
 config.yaml
+config-*.yaml
 *.local.yaml
+!config.example.yaml
 
 # Output files
 *.csv

@@ -302,3 +302,119 @@ def test_client_session_headers(client):
     assert client.session.headers["PRIVATE-TOKEN"] == "test-token-123"
     assert client.session.headers["Content-Type"] == "application/json"
 
+
+@responses.activate
+def test_list_commits_from_ref_success(client):
+    """Test listing commits from a ref with pagination."""
+    commits_page1 = [
+        {
+            "id": "abc123",
+            "short_id": "abc123",
+            "title": "Commit 1",
+            "message": "Commit 1",
+            "author_name": "John Doe",
+            "author_email": "john@example.com",
+            "authored_date": "2025-09-02T10:00:00Z",
+            "committed_date": "2025-09-02T10:00:00Z",
+            "committer_name": "John Doe",
+            "committer_email": "john@example.com",
+            "parent_ids": ["parent1"],
+            "web_url": "https://gitlab.example.com/commit/abc123"
+        }
+    ]
+    commits_page2 = [
+        {
+            "id": "def456",
+            "short_id": "def456",
+            "title": "Commit 2",
+            "message": "Commit 2",
+            "author_name": "Jane Smith",
+            "author_email": "jane@example.com",
+            "authored_date": "2025-09-01T10:00:00Z",
+            "committed_date": "2025-09-01T10:00:00Z",
+            "committer_name": "Jane Smith",
+            "committer_email": "jane@example.com",
+            "parent_ids": ["parent2"],
+            "web_url": "https://gitlab.example.com/commit/def456"
+        }
+    ]
+    
+    # First page
+    responses.add(
+        responses.GET,
+        "https://gitlab.example.com/api/v4/projects/123/repository/commits",
+        json=commits_page1,
+        status=200,
+        headers={"x-next-page": "2"}
+    )
+    
+    # Second page
+    responses.add(
+        responses.GET,
+        "https://gitlab.example.com/api/v4/projects/123/repository/commits",
+        json=commits_page2,
+        status=200,
+        headers={"x-next-page": ""}
+    )
+    
+    result = client.list_commits_from_ref(123, "v2.0.0")
+    
+    assert len(result) == 2
+    assert result[0]["id"] == "abc123"
+    assert result[1]["id"] == "def456"
+
+
+@responses.activate
+def test_list_commits_from_ref_with_date_filters(client):
+    """Test listing commits with since/until date filters."""
+    commits_data = [
+        {
+            "id": "abc123",
+            "short_id": "abc123",
+            "title": "Commit in date range",
+            "message": "Commit in date range",
+            "author_name": "John Doe",
+            "author_email": "john@example.com",
+            "authored_date": "2025-09-15T10:00:00Z",
+            "committed_date": "2025-09-15T10:00:00Z",
+            "committer_name": "John Doe",
+            "committer_email": "john@example.com",
+            "parent_ids": [],
+            "web_url": "https://gitlab.example.com/commit/abc123"
+        }
+    ]
+    
+    responses.add(
+        responses.GET,
+        "https://gitlab.example.com/api/v4/projects/123/repository/commits",
+        json=commits_data,
+        status=200,
+        headers={"x-next-page": ""}
+    )
+    
+    result = client.list_commits_from_ref(
+        123,
+        "main",
+        since="2025-09-01T00:00:00Z",
+        until="2025-10-01T00:00:00Z"
+    )
+    
+    assert len(result) == 1
+    assert result[0]["id"] == "abc123"
+
+
+@responses.activate
+def test_list_commits_from_ref_empty(client):
+    """Test listing commits when no commits exist."""
+    responses.add(
+        responses.GET,
+        "https://gitlab.example.com/api/v4/projects/123/repository/commits",
+        json=[],
+        status=200,
+        headers={"x-next-page": ""}
+    )
+    
+    result = client.list_commits_from_ref(123, "empty-branch")
+    
+    assert len(result) == 0
+

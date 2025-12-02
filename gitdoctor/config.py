@@ -3,6 +3,7 @@ Configuration module for GitDoctor.
 
 Handles loading and validating YAML configuration files.
 """
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -56,6 +57,25 @@ class FiltersConfig:
 
 
 @dataclass
+class JIRAConfig:
+    """Configuration for JIRA integration."""
+    base_url: Optional[str] = None
+    project_key: Optional[str] = None
+
+    def __post_init__(self):
+        if self.base_url:
+            # Remove trailing slash if present
+            self.base_url = self.base_url.rstrip("/")
+
+
+@dataclass
+class NotificationsConfig:
+    """Configuration for notifications."""
+    slack_webhook: Optional[str] = None
+    teams_webhook: Optional[str] = None
+
+
+@dataclass
 class ScanConfig:
     """Configuration for scan mode."""
     mode: str = "auto_discover"  # "auto_discover" or "explicit"
@@ -76,6 +96,8 @@ class AppConfig:
     projects: ProjectsConfig = field(default_factory=ProjectsConfig)
     groups: GroupsConfig = field(default_factory=GroupsConfig)
     filters: FiltersConfig = field(default_factory=FiltersConfig)
+    jira: JIRAConfig = field(default_factory=JIRAConfig)
+    notifications: NotificationsConfig = field(default_factory=NotificationsConfig)
 
     def __post_init__(self):
         # Validate that at least one source is configured
@@ -164,6 +186,20 @@ def load_config(config_path: str | Path) -> AppConfig:
             exclude_project_paths=filters_data.get("exclude_project_paths", []),
         )
 
+        # Parse JIRA config (optional)
+        jira_data = raw_config.get("jira", {})
+        jira_config = JIRAConfig(
+            base_url=jira_data.get("base_url"),
+            project_key=jira_data.get("project_key"),
+        )
+
+        # Parse notifications config (optional)
+        notifications_data = raw_config.get("notifications", {})
+        notifications_config = NotificationsConfig(
+            slack_webhook=notifications_data.get("slack_webhook"),
+            teams_webhook=notifications_data.get("teams_webhook"),
+        )
+
         # Create and return main config
         return AppConfig(
             gitlab=gitlab_config,
@@ -171,6 +207,8 @@ def load_config(config_path: str | Path) -> AppConfig:
             projects=projects_config,
             groups=groups_config,
             filters=filters_config,
+            jira=jira_config,
+            notifications=notifications_config,
         )
 
     except ConfigError:

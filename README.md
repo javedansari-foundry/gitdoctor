@@ -6,7 +6,8 @@ A powerful Python CLI tool that maps Git commit SHAs to GitLab repositories. It 
 
 - 🔍 **Smart Discovery**: Auto-discover all repositories in GitLab groups or explicitly specify projects to search
 - 🚀 **Rich Metadata**: Extract commit details, author info, branches, and tags
-- 📊 **CSV Export**: Generate comprehensive CSV reports for easy analysis
+- 📊 **CSV/JSON Export**: Generate comprehensive reports for easy analysis
+- 🔄 **Delta Discovery**: Compare two releases/tags/branches and find all commits between them
 - ⚙️ **Flexible Configuration**: YAML-based configuration with multiple scan modes
 - 🔒 **Enterprise Ready**: Supports self-hosted GitLab instances with SSL verification options
 - 🧪 **Well Tested**: Comprehensive test suite with pytest
@@ -27,8 +28,19 @@ Given a list of Git commit SHAs, this tool:
 This is particularly useful for:
 - **Platform Engineering**: Track which commits made it into which environments
 - **QA Teams**: Verify commit presence across multiple repositories
-- **Release Management**: Identify branch and tag relationships for commits
+- **Release Management**: Identify branch and tag relationships for commits, discover deltas between releases
 - **Audit & Compliance**: Generate reports on code deployment across repositories
+
+## 🔄 Delta Discovery
+
+GitDoctor now supports **delta discovery** - comparing two releases, tags, or branches to find all commits between them across all your microservices:
+
+```bash
+# Compare two releases across all services
+gitdoctor delta --base v1.0.0 --target v2.0.0 -o delta.csv
+```
+
+This automates the tedious manual process of cloning each repository and running `git log BASE..TARGET`. See [DELTA_GUIDE.md](DELTA_GUIDE.md) for complete documentation.
 
 ## Installation
 
@@ -189,7 +201,13 @@ filters:
 
 ## Usage
 
-### Preparing Your Input
+GitDoctor provides two main commands:
+- `search` - Find specific commits across repositories (original functionality)
+- `delta` - Compare two releases/tags/branches across repositories
+
+### Command 1: Search for Specific Commits
+
+#### Preparing Your Input
 
 Create a text file with commit SHAs (one per line):
 
@@ -201,40 +219,81 @@ fed321cba987654
 EOF
 ```
 
-### Running the Tool
+#### Running Search Command
 
 Basic usage:
 
 ```bash
+gitdoctor search -i commits.txt -o results.csv
+
+# Or use the old syntax (backward compatible)
 gitdoctor -i commits.txt -o results.csv
 ```
 
-With custom config file:
+With custom config and verbose logging:
 
 ```bash
-gitdoctor -c my-config.yaml -i commits.txt -o output.csv
+gitdoctor search -c my-config.yaml -i commits.txt -o output.csv -v
 ```
 
-With verbose logging:
-
-```bash
-gitdoctor -i commits.txt -o results.csv -v
-```
-
-### Command Line Options
+#### Search Command Options
 
 ```
-usage: gitdoctor [-h] [--version] [-c CONFIG] -i COMMITS_FILE 
-                             [-o OUTPUT] [-v]
+usage: gitdoctor search [-h] -i COMMITS_FILE [-o OUTPUT] [-c CONFIG] [-v]
 
 Options:
   -h, --help            Show help message
-  --version             Show version number
-  -c, --config CONFIG   Path to YAML config file (default: config.yaml)
   -i, --commits-file    Path to file with commit SHAs (required)
-  -o, --output OUTPUT   Path to output CSV (default: gitlab_commit_mapping.csv)
+  -o, --output          Path to output CSV (default: gitlab_commit_mapping.csv)
+  -c, --config          Path to YAML config file (default: config.yaml)
   -v, --verbose         Enable verbose logging
 ```
+
+### Command 2: Discover Delta Between Releases
+
+#### Running Delta Command
+
+Compare two tags:
+
+```bash
+gitdoctor delta --base v1.0.0 --target v2.0.0 -o delta.csv
+```
+
+With date filtering:
+
+```bash
+gitdoctor delta --base v1.0.0 --target v2.0.0 \
+                --after 2025-09-01 \
+                -o delta.csv -v
+```
+
+Export as JSON:
+
+```bash
+gitdoctor delta --base TAG1 --target TAG2 \
+                -o delta.json --format json
+```
+
+#### Delta Command Options
+
+```
+usage: gitdoctor delta [-h] --base BASE --target TARGET [-o OUTPUT] 
+                       [--format {csv,json}] [--after AFTER] [--before BEFORE]
+                       [-c CONFIG] [-v]
+
+Options:
+  -h, --help            Show help message
+  --base BASE           Base reference (tag/branch/commit) - starting point
+  --target TARGET       Target reference (tag/branch/commit) - ending point
+  -o, --output          Path to output file (default: delta.csv)
+  --format              Output format: csv or json (default: csv)
+  --after AFTER         Only commits after this date (ISO 8601: YYYY-MM-DD)
+  --before BEFORE       Only commits before this date (ISO 8601: YYYY-MM-DD)
+  -c, --config          Path to YAML config file (default: config.yaml)
+  -v, --verbose         Enable verbose logging
+```
+
+**📖 For complete delta documentation, see [DELTA_GUIDE.md](DELTA_GUIDE.md)**
 
 ### Output Format
 
