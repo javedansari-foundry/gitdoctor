@@ -1,0 +1,75 @@
+================================================================================
+GITDOCTOR DEMO - QUICK COMMAND REFERENCE
+================================================================================
+
+Your Tags:
+  Base:   MobiquityPay_vX.10.15.8_L4Patch_19Jan26  (Docker: X.10.15)
+  Target: MobiquityPay_vX.10.15.8_PVG.B1           (Docker: X.10.15.8)
+
+================================================================================
+COMMANDS TO RUN (Copy-Paste Ready)
+================================================================================
+
+# 1. Navigate and activate
+cd /Users/javedansari/My\ Projects/GitDoctor/gitdoctor
+source venv/bin/activate
+
+# 2. Verify installation
+gitdoctor --version
+
+# 3. Generate HTML report (Main Demo)
+gitdoctor delta \
+  --base MobiquityPay_vX.10.15.8_L4Patch_19Jan26 \
+  --target MobiquityPay_vX.10.15.8_PVG.B1 \
+  --format html \
+  -o delta-X.10.15-to-X.10.15.8.html \
+  -v
+
+# 4. Open HTML report
+open delta-X.10.15-to-X.10.15.8.html
+
+# 5. Generate CSV (for spreadsheet analysis)
+gitdoctor delta \
+  --base MobiquityPay_vX.10.15.8_L4Patch_19Jan26 \
+  --target MobiquityPay_vX.10.15.8_PVG.B1 \
+  --format csv \
+  -o delta-X.10.15-to-X.10.15.8.csv
+
+# 6. Preview CSV
+head -10 delta-X.10.15-to-X.10.15.8.csv
+
+# BONUS: MR Changes for test selection (if needed)
+gitdoctor mr-changes \
+  --project 127 \
+  --mr <MR_NUMBER> \
+  --format test-selection \
+  -o mr-changes.json
+
+================================================================================
+OUTPUT FILES
+================================================================================
+✓ delta-X.10.15-to-X.10.15.8.html  - Visual report with JIRA links
+✓ delta-X.10.15-to-X.10.15.8.csv   - Spreadsheet format
+
+================================================================================
+KEY POINTS TO MENTION
+================================================================================
+1. Searches ALL microservices in dfs-core automatically
+2. Extracts JIRA tickets from commit messages
+3. Generates clickable links to GitLab and JIRA
+4. Multiple export formats (HTML, CSV, JSON)
+5. Takes ~30-60 seconds for full analysis
+6. No manual cloning or git log needed
+
+================================================================================
+DOCUMENTATION TO SHARE
+================================================================================
+- TEAM_QUICKSTART.md   - Start here (5 min setup)
+- README.md            - Complete reference
+- DELTA_GUIDE.md       - Delta discovery details
+- MR_CHANGES_GUIDE.md  - Test selection guide
+
+Repository: https://github.com/javedansari-foundry/gitdoctor
+
+================================================================================
+
