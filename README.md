@@ -4,6 +4,7 @@ A powerful Python CLI tool that maps Git commit SHAs to GitLab repositories. It 
 
 ## Features
 
+- 🎯 **NEW: MR Changes for Test Selection**: Extract complete MR changeset (commits, files, diffs, JIRA tickets) for intelligent test selection
 - 🔍 **Smart Discovery**: Auto-discover all repositories in GitLab groups or explicitly specify projects to search
 - 🚀 **Rich Metadata**: Extract commit details, author info, branches, and tags
 - 📊 **CSV/JSON Export**: Generate comprehensive reports for easy analysis
@@ -41,6 +42,33 @@ gitdoctor delta --base v1.0.0 --target v2.0.0 -o delta.csv
 ```
 
 This automates the tedious manual process of cloning each repository and running `git log BASE..TARGET`. See [DELTA_GUIDE.md](DELTA_GUIDE.md) for complete documentation.
+
+## 🎯 NEW: MR Changes for Intelligent Test Selection
+
+Extract **complete changeset** from a Merge Request for intelligent test selection - know exactly what changed, which tests to run, and which JIRA tickets are included:
+
+```bash
+# Get all changes from an MR
+gitdoctor mr-changes --project 123 --mr 456 -o changes.json
+
+# Or use project path
+gitdoctor mr-changes --project "group/project" --mr 456 --format test-selection -o test-input.json
+```
+
+**What you get:**
+- ✅ All commits in the MR with file changes and diffs
+- ✅ JIRA tickets extracted from commit messages
+- ✅ Separation of test files vs source files
+- ✅ Changed directories and file patterns
+- ✅ Multiple export formats (JSON, CSV, test-selection)
+
+**Perfect for:**
+- 🧪 Running only tests affected by the changes (razor-sharp coverage)
+- 🎫 Mapping changes to JIRA stories for test planning
+- 📁 Selecting test suites based on changed directories
+- 🚀 CI/CD pipelines with intelligent test selection
+
+**📖 Full Documentation:** See [MR_CHANGES_GUIDE.md](MR_CHANGES_GUIDE.md) for complete guide with examples.
 
 ## Installation
 
