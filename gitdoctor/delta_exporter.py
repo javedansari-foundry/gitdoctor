@@ -98,6 +98,23 @@ class DeltaCSVExporter:
             logger.error(f"Failed to write CSV file: {e}")
             raise
     
+    @staticmethod
+    def _sanitize_text(text: str) -> str:
+        """
+        Sanitize text for CSV export by replacing newlines and carriage returns.
+        
+        Args:
+            text: Text to sanitize
+            
+        Returns:
+            Sanitized text with newlines replaced by spaces
+        """
+        if not text:
+            return ""
+        # Replace newlines and carriage returns with spaces
+        # Also strip multiple consecutive spaces
+        return ' '.join(text.replace('\r\n', ' ').replace('\n', ' ').replace('\r', ' ').split())
+    
     def _create_row(self, delta: DeltaResult, commit, jira_linker=None) -> dict:
         """Create a CSV row for a commit."""
         # Extract JIRA tickets if linker is provided
@@ -121,13 +138,13 @@ class DeltaCSVExporter:
             "target_exists": delta.target_exists,
             "commit_sha": commit.commit_sha,
             "short_id": commit.short_id,
-            "title": commit.title,
-            "message": commit.message,
-            "author_name": commit.author_name,
+            "title": self._sanitize_text(commit.title),
+            "message": self._sanitize_text(commit.message),
+            "author_name": self._sanitize_text(commit.author_name),
             "author_email": commit.author_email,
             "authored_date": commit.authored_date,
             "committed_date": commit.committed_date,
-            "committer_name": commit.committer_name,
+            "committer_name": self._sanitize_text(commit.committer_name),
             "committer_email": commit.committer_email,
             "commit_web_url": commit.web_url,
             "parent_shas": "|".join(commit.parent_ids) if commit.parent_ids else "",
@@ -135,7 +152,7 @@ class DeltaCSVExporter:
             "jira_ticket_urls": jira_ticket_urls,
             "compare_timeout": delta.compare_timeout,
             "compare_same_ref": delta.compare_same_ref,
-            "error": delta.error or ""
+            "error": self._sanitize_text(delta.error) if delta.error else ""
         }
     
     def _create_empty_row(self, delta: DeltaResult) -> dict:
@@ -163,7 +180,7 @@ class DeltaCSVExporter:
             "parent_shas": "",
             "compare_timeout": delta.compare_timeout,
             "compare_same_ref": delta.compare_same_ref,
-            "error": delta.error or ""
+            "error": self._sanitize_text(delta.error) if delta.error else ""
         }
 
 
@@ -1900,6 +1917,23 @@ class MRCSVExporter:
             logger.error(f"Failed to write CSV file: {e}")
             raise
     
+    @staticmethod
+    def _sanitize_text(text: str) -> str:
+        """
+        Sanitize text for CSV export by replacing newlines and carriage returns.
+        
+        Args:
+            text: Text to sanitize
+            
+        Returns:
+            Sanitized text with newlines replaced by spaces
+        """
+        if not text:
+            return ""
+        # Replace newlines and carriage returns with spaces
+        # Also strip multiple consecutive spaces
+        return ' '.join(text.replace('\r\n', ' ').replace('\n', ' ').replace('\r', ' ').split())
+    
     def _create_row(self, result: MRResult, mr: MergeRequest, jira_linker=None) -> dict:
         """Create a CSV row for a merge request."""
         # Extract JIRA tickets if linker is provided
@@ -1913,20 +1947,25 @@ class MRCSVExporter:
                 jira_tickets = "|".join(sorted(tickets))
                 jira_ticket_urls = "|".join([jira_linker.get_ticket_url(t) for t in sorted(tickets)])
         
+        # Sanitize description and truncate if needed
+        description = self._sanitize_text(mr.description) if mr.description else ""
+        if len(description) > 500:
+            description = description[:500] + "..."
+        
         return {
             "project_path": result.project_path,
             "project_name": result.project_name,
             "project_id": result.project_id,
             "project_web_url": result.project_web_url,
             "mr_iid": mr.mr_iid,
-            "title": mr.title,
-            "description": mr.description[:500] if mr.description else "",  # Truncate long descriptions
+            "title": self._sanitize_text(mr.title),
+            "description": description,
             "state": mr.state,
             "source_branch": mr.source_branch,
             "target_branch": mr.target_branch,
-            "author_name": mr.author_name,
+            "author_name": self._sanitize_text(mr.author_name),
             "author_username": mr.author_username,
-            "merged_by_name": mr.merged_by_name or "",
+            "merged_by_name": self._sanitize_text(mr.merged_by_name) if mr.merged_by_name else "",
             "merged_by_username": mr.merged_by_username or "",
             "merged_at": mr.merged_at or "",
             "created_at": mr.created_at,
@@ -1936,7 +1975,7 @@ class MRCSVExporter:
             "labels": "|".join(mr.labels) if mr.labels else "",
             "jira_tickets": jira_tickets,
             "jira_ticket_urls": jira_ticket_urls,
-            "error": result.error or ""
+            "error": self._sanitize_text(result.error) if result.error else ""
         }
     
     def _create_empty_row(self, result: MRResult) -> dict:
@@ -1964,7 +2003,7 @@ class MRCSVExporter:
             "labels": "",
             "jira_tickets": "",
             "jira_ticket_urls": "",
-            "error": result.error or ""
+            "error": self._sanitize_text(result.error) if result.error else ""
         }
 
 
