@@ -466,6 +466,206 @@ class GitLabClient:
         response = self._make_request("GET", endpoint)
         return response.json()
 
+    def list_merge_requests(
+        self,
+        project_id: int,
+        state: str = "merged",
+        target_branch: Optional[str] = None,
+        source_branch: Optional[str] = None,
+        merged_after: Optional[str] = None,
+        merged_before: Optional[str] = None,
+        created_after: Optional[str] = None,
+        created_before: Optional[str] = None,
+        per_page: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        List merge requests for a project with various filters.
+        
+        Args:
+            project_id: GitLab project ID
+            state: MR state filter - 'opened', 'closed', 'merged', 'all' (default: 'merged')
+            target_branch: Filter by target branch name
+            source_branch: Filter by source branch name
+            merged_after: Only MRs merged after this date (ISO 8601 format)
+            merged_before: Only MRs merged before this date (ISO 8601 format)
+            created_after: Only MRs created after this date (ISO 8601 format)
+            created_before: Only MRs created before this date (ISO 8601 format)
+            per_page: Items per page (max 100)
+        
+        Returns:
+            List of merge request data dictionaries, each containing:
+            - id: MR ID (internal)
+            - iid: MR IID (visible in GitLab UI)
+            - title: MR title
+            - description: MR description
+            - state: MR state (merged, opened, closed)
+            - source_branch: Source branch name
+            - target_branch: Target branch name
+            - author: Author info dict
+            - merged_by: Who merged it (if merged)
+            - merged_at: When it was merged (if merged)
+            - created_at: When it was created
+            - updated_at: When it was last updated
+            - web_url: URL to view MR in GitLab
+            - sha: The merge commit SHA (if merged)
+        
+        Raises:
+            GitLabNotFound: If project doesn't exist
+            GitLabAPIError: For other API errors
+        
+        Example:
+            >>> mrs = client.list_merge_requests(
+            ...     123,
+            ...     state="merged",
+            ...     target_branch="master",
+            ...     merged_after="2025-10-01T00:00:00Z"
+            ... )
+            >>> print(f"Found {len(mrs)} merged MRs to master")
+        """
+        endpoint = f"projects/{project_id}/merge_requests"
+        params = {
+            "state": state,
+        }
+        
+        if target_branch:
+            params["target_branch"] = target_branch
+        if source_branch:
+            params["source_branch"] = source_branch
+        if merged_after:
+            params["merged_after"] = merged_after
+        if merged_before:
+            params["merged_before"] = merged_before
+        if created_after:
+            params["created_after"] = created_after
+        if created_before:
+            params["created_before"] = created_before
+        
+        return self._get_paginated(endpoint, params=params, per_page=per_page)
+
+    def get_merge_request(
+        self,
+        project_id: int,
+        mr_iid: int
+    ) -> Dict[str, Any]:
+        """
+        Get detailed information about a specific merge request.
+        
+        Args:
+            project_id: GitLab project ID
+            mr_iid: Merge request IID (the visible number in GitLab)
+        
+        Returns:
+            Dictionary with merge request details
+        
+        Raises:
+            GitLabNotFound: If project or MR doesn't exist
+            GitLabAPIError: For other API errors
+        """
+        endpoint = f"projects/{project_id}/merge_requests/{mr_iid}"
+        response = self._make_request("GET", endpoint)
+        return response.json()
+
+    def get_commit_diff(self, project_id: int, sha: str) -> List[Dict[str, Any]]:
+        """
+        Get file diffs for a specific commit.
+        
+        Args:
+            project_id: GitLab project ID
+            sha: Commit SHA
+        
+        Returns:
+            List of changed files with diff information, each containing:
+            - old_path: Path before change
+            - new_path: Path after change
+            - diff: Unified diff text
+            - new_file: Boolean, true if file was created
+            - deleted_file: Boolean, true if file was deleted
+            - renamed_file: Boolean, true if file was renamed
+            - a_mode: File mode before change
+            - b_mode: File mode after change
+        
+        Raises:
+            GitLabNotFound: If commit doesn't exist
+            GitLabAPIError: For other API errors
+        
+        Example:
+            >>> diffs = client.get_commit_diff(123, "abc123...")
+            >>> for file_diff in diffs:
+            ...     print(f"Changed: {file_diff['new_path']}")
+        """
+        endpoint = f"projects/{project_id}/repository/commits/{sha}/diff"
+        return self._get_paginated(endpoint)
+
+    def get_merge_request_commits(
+        self,
+        project_id: int,
+        mr_iid: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all commits that are part of a merge request.
+        
+        Args:
+            project_id: GitLab project ID
+            mr_iid: Merge request IID (the visible number in GitLab)
+        
+        Returns:
+            List of commit data dictionaries, each containing:
+            - id: Full commit SHA
+            - short_id: Short commit SHA
+            - title: Commit title
+            - message: Full commit message
+            - author_name, author_email
+            - created_at: Commit date
+            - web_url: URL to view commit
+        
+        Raises:
+            GitLabNotFound: If project or MR doesn't exist
+            GitLabAPIError: For other API errors
+        
+        Example:
+            >>> commits = client.get_merge_request_commits(123, 456)
+            >>> print(f"MR has {len(commits)} commits")
+        """
+        endpoint = f"projects/{project_id}/merge_requests/{mr_iid}/commits"
+        return self._get_paginated(endpoint)
+
+    def get_merge_request_changes(
+        self,
+        project_id: int,
+        mr_iid: int
+    ) -> Dict[str, Any]:
+        """
+        Get complete changeset (MR details + all file changes) for a merge request.
+        
+        This returns the full MR data plus a 'changes' array containing all file
+        diffs across all commits in the MR.
+        
+        Args:
+            project_id: GitLab project ID
+            mr_iid: Merge request IID (the visible number in GitLab)
+        
+        Returns:
+            Dictionary containing:
+            - All standard MR fields (id, iid, title, description, etc.)
+            - changes: List of file changes with diffs
+              Each change contains:
+              - old_path, new_path: File paths
+              - diff: Unified diff text
+              - new_file, deleted_file, renamed_file: Boolean flags
+        
+        Raises:
+            GitLabNotFound: If project or MR doesn't exist
+            GitLabAPIError: For other API errors
+        
+        Example:
+            >>> mr_data = client.get_merge_request_changes(123, 456)
+            >>> print(f"Title: {mr_data['title']}")
+            >>> print(f"Changed files: {len(mr_data['changes'])}")
+        """
+        endpoint = f"projects/{project_id}/merge_requests/{mr_iid}/changes"
+        response = self._make_request("GET", endpoint)
+        return response.json()
+
     def test_connection(self) -> bool:
         """
         Test the connection to GitLab API.

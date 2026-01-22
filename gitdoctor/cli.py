@@ -16,8 +16,11 @@ from .api_client import GitLabClient, GitLabAPIError
 from .project_resolver import resolve_projects
 from .commit_finder import CommitFinder, CommitSearchResult, load_commit_shas_from_file
 from .delta_finder import DeltaFinder
-from .delta_exporter import get_exporter
-from .models import DeltaSummary
+from .delta_exporter import get_exporter, get_mr_exporter
+from .mr_finder import MRFinder
+from .mr_changes_finder import MRChangesFinder
+from .mr_changes_exporter import get_mr_changes_exporter
+from .models import DeltaSummary, MRSummary, MRChangesResult
 from .jira_integration import create_jira_linker
 from .notifications import create_slack_notifier, create_teams_notifier
 
@@ -547,6 +550,318 @@ def handle_delta_command(args):
         sys.exit(1)
 
 
+def handle_mr_command(args):
+    """Handle the mr subcommand (merge request tracking)."""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Step 1: Load configuration
+        logger.info(f"Loading configuration from {args.config}")
+        try:
+            config = load_config(args.config)
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {args.config}")
+            logger.error("Please create a config.yaml file. See config.example.yaml for reference.")
+            sys.exit(1)
+        except ConfigError as e:
+            logger.error(f"Configuration error: {e}")
+            sys.exit(1)
+
+        logger.info(f"  Mode: {config.scan.mode}")
+        logger.info(f"  GitLab: {config.gitlab.base_url}")
+
+        # Step 2: Initialize GitLab client
+        logger.info("Initializing GitLab API client")
+        client = GitLabClient(
+            base_url=config.gitlab.base_url,
+            private_token=config.gitlab.private_token,
+            api_version=config.gitlab.api_version,
+            verify_ssl=config.gitlab.verify_ssl,
+            timeout_seconds=config.gitlab.timeout_seconds,
+        )
+
+        # Test connection
+        try:
+            logger.info("Testing GitLab connection...")
+            client.test_connection()
+            logger.info("  Connection successful")
+        except GitLabAPIError as e:
+            logger.error(f"Failed to connect to GitLab: {e}")
+            sys.exit(1)
+
+        # Step 3: Resolve projects
+        logger.info("Resolving projects to search...")
+        try:
+            projects = resolve_projects(config, client)
+        except GitLabAPIError as e:
+            logger.error(f"Failed to resolve projects: {e}")
+            sys.exit(1)
+
+        if not projects:
+            logger.error("No projects found. Check your configuration.")
+            sys.exit(1)
+
+        # Step 3a: Filter projects if CLI arguments provided
+        cli_project_paths = getattr(args, 'projects', None)
+        cli_project_ids = getattr(args, 'project_ids', None)
+        
+        if cli_project_paths or cli_project_ids:
+            logger.info("Processing projects based on CLI arguments...")
+            
+            if cli_project_ids:
+                try:
+                    ids = [int(id_str.strip()) for id_str in cli_project_ids.split(',')]
+                    existing_ids = {p.id for p in projects}
+                    missing_ids = [pid for pid in ids if pid not in existing_ids]
+                    
+                    if missing_ids:
+                        logger.info(f"Fetching {len(missing_ids)} project(s) by ID from GitLab...")
+                        from .project_resolver import ProjectInfo
+                        for project_id in missing_ids:
+                            try:
+                                project_data = client.get_project_by_id(project_id)
+                                project_info = ProjectInfo(
+                                    id=project_data['id'],
+                                    name=project_data['name'],
+                                    path_with_namespace=project_data['path_with_namespace'],
+                                    web_url=project_data['web_url']
+                                )
+                                projects.append(project_info)
+                                logger.info(f"  ✓ Fetched project {project_id}: {project_info.path_with_namespace}")
+                            except GitLabAPIError as e:
+                                logger.warning(f"  ✗ Could not fetch project {project_id}: {e}")
+                    
+                    id_set = set(ids)
+                    projects = [p for p in projects if p.id in id_set]
+                    logger.info(f"Filtered to {len(projects)} project(s) by ID")
+                except ValueError as e:
+                    logger.error(f"Invalid project IDs format: {e}")
+                    sys.exit(1)
+            
+            elif cli_project_paths:
+                projects = filter_projects_by_cli_args(
+                    projects,
+                    project_paths=cli_project_paths,
+                    project_ids=None
+                )
+        
+        if not projects:
+            logger.error("No projects found. Check your --projects or --project-ids arguments.")
+            sys.exit(1)
+
+        logger.info(f"  Will search across {len(projects)} project(s)")
+
+        # Step 4: Validate date range
+        merged_after_iso = None
+        merged_before_iso = None
+        
+        if getattr(args, 'after', None) or getattr(args, 'before', None):
+            logger.info("Validating date range...")
+            try:
+                merged_after_iso, merged_before_iso = validate_date_range(
+                    getattr(args, 'after', None),
+                    getattr(args, 'before', None)
+                )
+                if merged_after_iso:
+                    logger.info(f"  MRs merged after: {getattr(args, 'after')}")
+                if merged_before_iso:
+                    logger.info(f"  MRs merged before: {getattr(args, 'before')}")
+            except ValueError as e:
+                logger.error(f"Date validation error: {e}")
+                sys.exit(1)
+
+        # Step 5: Find merge requests
+        logger.info(f"Fetching merge requests...")
+        logger.info(f"  State: {args.state}")
+        if args.target:
+            logger.info(f"  Target branch: {args.target}")
+        if args.source:
+            logger.info(f"  Source branch: {args.source}")
+        logger.info("(This may take a while depending on the number of projects)")
+        
+        finder = MRFinder(client, projects)
+        results = finder.find_merge_requests(
+            target_branch=args.target,
+            source_branch=args.source,
+            state=args.state,
+            merged_after=merged_after_iso,
+            merged_before=merged_before_iso
+        )
+
+        # Step 6: Generate summary
+        summary = finder.generate_summary(results)
+        summary.date_range_start = getattr(args, 'after', None)
+        summary.date_range_end = getattr(args, 'before', None)
+        
+        # Step 7: Create JIRA linker if configured
+        jira_linker = None
+        jira_url = getattr(args, 'jira_url', None) or config.jira.base_url
+        jira_project = getattr(args, 'jira_project', None) or config.jira.project_key
+        
+        if jira_url:
+            jira_linker = create_jira_linker(
+                jira_base_url=jira_url,
+                project_key=jira_project
+            )
+            if jira_linker:
+                logger.info("JIRA integration enabled")
+        
+        # Step 8: Export results
+        logger.info(f"Exporting results to {args.output}")
+        exporter = get_mr_exporter(args.format)
+        
+        if args.format == "html":
+            exporter.export(results, args.output, summary=summary, jira_linker=jira_linker)
+        elif args.format == "csv" and jira_linker:
+            exporter.export(results, args.output, jira_linker=jira_linker)
+        else:
+            exporter.export(results, args.output)
+
+        # Step 9: Display summary
+        print()
+        print(summary)
+
+    except KeyboardInterrupt:
+        logger.warning("\nInterrupted by user")
+        sys.exit(130)
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=args.verbose)
+        sys.exit(1)
+
+
+def handle_mr_changes_command(args):
+    """Handle the mr-changes subcommand (MR changeset for test selection)."""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Step 1: Load configuration
+        logger.info(f"Loading configuration from {args.config}")
+        try:
+            config = load_config(args.config)
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {args.config}")
+            logger.error("Please create a config.yaml file. See config.example.yaml for reference.")
+            sys.exit(1)
+        except ConfigError as e:
+            logger.error(f"Configuration error: {e}")
+            sys.exit(1)
+
+        logger.info(f"  GitLab: {config.gitlab.base_url}")
+
+        # Step 2: Initialize GitLab client
+        logger.info("Initializing GitLab API client")
+        client = GitLabClient(
+            base_url=config.gitlab.base_url,
+            private_token=config.gitlab.private_token,
+            api_version=config.gitlab.api_version,
+            verify_ssl=config.gitlab.verify_ssl,
+            timeout_seconds=config.gitlab.timeout_seconds,
+        )
+
+        # Test connection
+        try:
+            logger.info("Testing GitLab connection...")
+            client.test_connection()
+            logger.info("  Connection successful")
+        except GitLabAPIError as e:
+            logger.error(f"Failed to connect to GitLab: {e}")
+            sys.exit(1)
+
+        # Step 3: Create JIRA linker if configured
+        jira_linker = None
+        jira_url = getattr(args, 'jira_url', None) or config.jira.base_url
+        jira_project = getattr(args, 'jira_project', None) or config.jira.project_key
+        
+        if jira_url:
+            jira_linker = create_jira_linker(
+                jira_base_url=jira_url,
+                project_key=jira_project
+            )
+            if jira_linker:
+                logger.info("JIRA integration enabled - extracting ticket references")
+
+        # Step 4: Fetch MR changes
+        logger.info(f"Fetching changes for MR !{args.mr_iid} in project {args.project}...")
+        logger.info("(This may take a while for large MRs)")
+        
+        finder = MRChangesFinder(client, jira_linker=jira_linker)
+        result = finder.get_mr_changes(
+            project_id_or_path=args.project,
+            mr_iid=args.mr_iid,
+            include_diffs=not args.no_diffs
+        )
+
+        # Check for errors
+        if result.error:
+            logger.error(f"Failed to fetch MR changes: {result.error}")
+            sys.exit(1)
+
+        # Step 5: Export results
+        logger.info(f"Exporting results to {args.output}")
+        exporter = get_mr_changes_exporter(args.format)
+        exporter.export(result, args.output)
+
+        # Step 6: Display summary
+        print()
+        print("=" * 60)
+        print("MR Changes Summary")
+        print("=" * 60)
+        print(f"MR:                      !{result.mr_iid} - {result.title}")
+        print(f"Project:                 {result.project_path}")
+        print(f"Source → Target:         {result.source_branch} → {result.target_branch}")
+        print(f"State:                   {result.state}")
+        print(f"Author:                  {result.author_name}")
+        if result.merged_at:
+            print(f"Merged At:               {result.merged_at}")
+        print()
+        print(f"Total Commits:           {result.total_commits}")
+        print(f"Total Files Changed:     {result.total_files_changed}")
+        print(f"  Source Files:          {len(result.get_non_test_files())}")
+        print(f"  Test Files:            {len(result.get_test_files())}")
+        print()
+        
+        if result.files_by_extension:
+            print("Files by Extension:")
+            for ext, count in sorted(result.files_by_extension.items(), key=lambda x: x[1], reverse=True)[:5]:
+                print(f"  {ext}: {count}")
+        
+        if result.changed_directories:
+            print()
+            print(f"Changed Directories ({len(result.changed_directories)}):")
+            for directory in result.changed_directories[:10]:
+                print(f"  - {directory}")
+            if len(result.changed_directories) > 10:
+                print(f"  ... and {len(result.changed_directories) - 10} more")
+        
+        if result.unique_jira_tickets:
+            print()
+            print(f"JIRA Tickets ({len(result.unique_jira_tickets)}):")
+            for ticket in result.unique_jira_tickets:
+                print(f"  - {ticket}")
+                if jira_linker:
+                    print(f"    {jira_linker.get_ticket_url(ticket)}")
+        
+        print("=" * 60)
+        print(f"✓ Results exported to: {args.output}")
+        print("=" * 60)
+        
+        # Display usage hint for test selection
+        if args.format == 'test-selection' or args.format == 'test-selection-detailed':
+            print()
+            print("💡 This file is ready for intelligent test selection!")
+            print("   Use it with your test automation framework to:")
+            print("   - Map changed files to test suites")
+            print("   - Filter tests by JIRA tickets")
+            print("   - Run tests for affected directories")
+
+    except KeyboardInterrupt:
+        logger.warning("\nInterrupted by user")
+        sys.exit(130)
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=args.verbose)
+        sys.exit(1)
+
+
 def main():
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
@@ -725,6 +1040,210 @@ Note: Uses paginated API - handles large repositories without timeouts.
         help="JIRA project key to filter tickets (e.g., MON). If not specified, extracts all ticket patterns"
     )
 
+    # ===== MR COMMAND (merge request tracking) =====
+    mr_parser = subparsers.add_parser(
+        "mr",
+        help="Track merge requests across repositories",
+        description="Find and track merge requests with various filters",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Find all MRs merged to master in last 3 months
+  gitdoctor mr --target master --after 2025-10-01 -o mrs.csv
+
+  # Find MRs from premaster branches merged to master
+  gitdoctor mr --target master --source premaster -o mrs.csv
+
+  # Find all MRs (any state) for specific projects
+  gitdoctor mr --state all --projects "myorg/backend/api" -o mrs.csv
+
+  # Export as HTML with JIRA integration
+  gitdoctor mr --target master --after 2025-10-01 \\
+               -o mrs.html --format html
+
+Note: This command tracks merge requests, not commits.
+      Use 'gitdoctor delta' to compare commits between branches/tags.
+        """
+    )
+
+    mr_parser.add_argument(
+        "-c", "--config",
+        default="config.yaml",
+        help="Path to YAML configuration file (default: config.yaml)"
+    )
+
+    mr_parser.add_argument(
+        "--target",
+        help="Filter by target branch (e.g., master, main). The branch MRs are merged into."
+    )
+
+    mr_parser.add_argument(
+        "--source",
+        help="Filter by source branch pattern (e.g., premaster, develop). The branch MRs come from."
+    )
+
+    mr_parser.add_argument(
+        "--state",
+        choices=["merged", "opened", "closed", "all"],
+        default="merged",
+        help="MR state filter (default: merged)"
+    )
+
+    mr_parser.add_argument(
+        "--after",
+        help="Only MRs merged after this date. Format: YYYY-MM-DD"
+    )
+
+    mr_parser.add_argument(
+        "--before",
+        help="Only MRs merged before this date. Format: YYYY-MM-DD"
+    )
+
+    mr_parser.add_argument(
+        "-o", "--output",
+        default="merge_requests.csv",
+        help="Path to output file (default: merge_requests.csv)"
+    )
+
+    mr_parser.add_argument(
+        "--format",
+        choices=["csv", "json", "html"],
+        default="csv",
+        help="Output format: csv, json, or html (default: csv)"
+    )
+
+    mr_parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose logging"
+    )
+
+    mr_parser.add_argument(
+        "--projects",
+        help="Comma-separated list of project paths to search"
+    )
+
+    mr_parser.add_argument(
+        "--project-ids",
+        help="Comma-separated list of project IDs to search"
+    )
+
+    mr_parser.add_argument(
+        "--jira-url",
+        help="JIRA base URL for ticket linking"
+    )
+
+    mr_parser.add_argument(
+        "--jira-project",
+        help="JIRA project key to filter tickets"
+    )
+
+    # ===== MR-CHANGES COMMAND (MR changeset for test selection) =====
+    mr_changes_parser = subparsers.add_parser(
+        "mr-changes",
+        help="Get complete changeset for an MR (for intelligent test selection)",
+        description="Fetch all commits, file changes, and diffs for a merge request",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Get MR changes for test selection (compact JSON)
+  gitdoctor mr-changes --project 123 --mr 456 -o mr-changes.json
+  
+  # Using project path instead of ID
+  gitdoctor mr-changes --project "dfs-core/product-domains/transaction/shulka" \\
+                       --mr 789 -o changes.json
+  
+  # Export in test-selection format (optimized for test automation)
+  gitdoctor mr-changes --project 123 --mr 456 \\
+                       --format test-selection -o test-input.json
+  
+  # Get detailed format with full diffs
+  gitdoctor mr-changes --project 123 --mr 456 \\
+                       --format test-selection-detailed -o detailed-changes.json
+  
+  # Export to CSV (file-centric view)
+  gitdoctor mr-changes --project 123 --mr 456 \\
+                       --format csv -o changes.csv
+  
+  # Without diffs (faster, smaller output)
+  gitdoctor mr-changes --project 123 --mr 456 \\
+                       --no-diffs -o changes.json
+  
+  # With JIRA integration
+  gitdoctor mr-changes --project 123 --mr 456 \\
+                       --jira-url https://jira.company.com \\
+                       --jira-project MON -o changes.json
+
+Note: This command provides all data needed for intelligent test selection:
+      - All commits in the MR
+      - All file changes with diffs
+      - JIRA tickets from commit messages
+      - Changed directories and file patterns
+      - Separation of test files vs source files
+        """
+    )
+
+    mr_changes_parser.add_argument(
+        "-c", "--config",
+        default="config.yaml",
+        help="Path to YAML configuration file (default: config.yaml)"
+    )
+
+    mr_changes_parser.add_argument(
+        "--project",
+        required=True,
+        help="Project ID (e.g., 123) or path (e.g., 'group/subgroup/project')"
+    )
+
+    mr_changes_parser.add_argument(
+        "--mr",
+        dest="mr_iid",
+        type=int,
+        required=True,
+        help="Merge request IID (the visible MR number, e.g., 456 for !456)"
+    )
+
+    mr_changes_parser.add_argument(
+        "-o", "--output",
+        default="mr-changes.json",
+        help="Path to output file (default: mr-changes.json)"
+    )
+
+    mr_changes_parser.add_argument(
+        "--format",
+        choices=["json", "csv", "test-selection", "test-selection-detailed"],
+        default="test-selection",
+        help=(
+            "Output format (default: test-selection). "
+            "test-selection: Compact format for test automation. "
+            "test-selection-detailed: Includes full diffs. "
+            "json: Full structured data. "
+            "csv: Flat format for spreadsheets."
+        )
+    )
+
+    mr_changes_parser.add_argument(
+        "--no-diffs",
+        action="store_true",
+        help="Exclude diff content (faster, smaller output)"
+    )
+
+    mr_changes_parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose logging"
+    )
+
+    mr_changes_parser.add_argument(
+        "--jira-url",
+        help="JIRA base URL for ticket linking (e.g., https://jira.company.com)"
+    )
+
+    mr_changes_parser.add_argument(
+        "--jira-project",
+        help="JIRA project key to filter tickets (e.g., MON)"
+    )
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -753,6 +1272,10 @@ Note: Uses paginated API - handles large repositories without timeouts.
         handle_search_command(args)
     elif args.command == "delta":
         handle_delta_command(args)
+    elif args.command == "mr":
+        handle_mr_command(args)
+    elif args.command == "mr-changes":
+        handle_mr_changes_command(args)
     else:
         parser.print_help()
         sys.exit(1)
