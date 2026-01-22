@@ -1,0 +1,50 @@
+Subject: 🚀 Introducing GitDoctor v1.1 - Automated Release Tracking & Test Selection Tool
+
+Hi Team,
+
+We're excited to announce GitDoctor v1.1, a powerful command-line tool that automates release tracking and intelligent test selection across our GitLab repositories.
+
+🎯 What GitDoctor Does:
+• Compare releases and generate complete changelogs in 60 seconds (vs 2-4 hours manually)
+• Extract exact changes from Merge Requests for targeted test selection
+• Auto-link JIRA tickets from commit messages
+• Generate beautiful HTML/CSV reports with visual charts
+• 100% accuracy - never miss a commit or repo
+
+💡 Key Use Cases:
+• Release Managers: Track what's going to production
+• QA Teams: Know exactly what to test and why
+• DevOps/PE Teams: Verify deployments and hotfixes
+• Developers: Find where commits landed across repos
+
+⚡ Quick Example:
+Compare two releases with a single command:
+
+  gitdoctor delta --base MobiquityPay_vX.10.15.8 \
+                  --target MobiquityPay_vX.10.16.0 \
+                  -o release-delta.html --format html
+
+Output: Complete report with all commits, JIRA tickets, and visual charts in HTML format.
+
+🚀 Getting Started:
+1. Clone: git clone http://blrgitlab.comviva.com/dfs-core/automation/gitdoctor.git
+2. Install: Takes 5 minutes (see Confluence page)
+3. Run: Single command to generate reports
+
+📖 Full Documentation & Examples:
+Please see the complete Confluence page with setup instructions, examples, and troubleshooting:
+[INSERT YOUR CONFLUENCE PAGE LINK HERE]
+
+Repository: http://blrgitlab.comviva.com/dfs-core/automation/gitdoctor
+
+📞 Questions or Need Help?
+Contact the Platform Engineering team or check TROUBLESHOOTING.md in the repository.
+
+Looking forward to seeing how this tool helps streamline your workflows!
+
+Best regards,
+Platform Engineering Team
+
+---
+This is an automated announcement. GitDoctor v1.1.0 | January 2026
+

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>GitDoctor - Automated Release Delta Discovery & Intelligent Test Selection</title>
+</head>
+<body>
+
+<h1>GitDoctor - Automated Release Delta Discovery & Intelligent Test Selection</h1>
+
+<div style="background-color: #E3FCEF; padding: 15px; border-radius: 5px; margin: 20px 0;">
+<p><strong>Version:</strong> 1.1.0<br>
+<strong>Repository:</strong> <a href="http://blrgitlab.comviva.com/dfs-core/automation/gitdoctor">http://blrgitlab.comviva.com/dfs-core/automation/gitdoctor</a><br>
+<strong>Last Updated:</strong> January 2026</p>
+</div>
+
+<hr>
+
+<h2>🎯 What is GitDoctor?</h2>
+
+<p>GitDoctor automates release tracking and test selection across multiple GitLab repositories:</p>
+
+<ul>
+<li><strong>🔍 Delta Discovery</strong> - Find all commits between any two tags/branches across all repos</li>
+<li><strong>📊 Release Reports</strong> - Generate beautiful HTML/CSV reports in seconds</li>
+<li><strong>🎫 JIRA Integration</strong> - Auto-extract and link JIRA tickets from commits</li>
+<li><strong>🧪 Test Selection</strong> - Identify exact changes in Merge Requests for targeted testing</li>
+<li><strong>⚡ Speed</strong> - 60 seconds vs 2-4 hours of manual work per release</li>
+</ul>
+
+<hr>
+
+<h2>💡 Why Use GitDoctor?</h2>
+
+<table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+<thead>
+<tr style="background-color: #f4f5f7;">
+<th>Manual Process</th>
+<th>With GitDoctor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2-4 hours per release</td>
+<td><strong>60 seconds</strong> ⚡</td>
+</tr>
+<tr>
+<td>Run git log in 30+ repos</td>
+<td><strong>Single command</strong> 🎯</td>
+</tr>
+<tr>
+<td>Copy-paste to Excel</td>
+<td><strong>Auto-generated reports</strong> 📊</td>
+</tr>
+<tr>
+<td>Miss commits & repos</td>
+<td><strong>100% accuracy</strong> ✅</td>
+</tr>
+<tr>
+<td>No JIRA correlation</td>
+<td><strong>Auto-linked tickets</strong> 🎫</td>
+</tr>
+<tr>
+<td>Manual test selection</td>
+<td><strong>Intelligent recommendations</strong> 🧪</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2>👥 Who Should Use It?</h2>
+
+<ul>
+<li><strong>Release Managers</strong> - Track what's going to production</li>
+<li><strong>QA Teams</strong> - Know exactly what to test and why</li>
+<li><strong>DevOps/PE Teams</strong> - Verify deployments and hotfixes</li>
+<li><strong>Developers</strong> - Find where commits landed across repos</li>
+<li><strong>Auditors</strong> - Generate compliance & change reports</li>
+</ul>
+
+<hr>
+
+<h2>⚡ Quick Commands</h2>
+
+<h3>1️⃣ Compare Two Releases (Delta)</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# Generate HTML report showing all changes between tags
+gitdoctor delta --base MobiquityPay_vX.10.15.8 --target MobiquityPay_vX.10.16.0 \
+  -o release-delta.html --format html
+</pre>
+
+<p><strong>Output:</strong> All commits, changed files, JIRA tickets, visual charts</p>
+
+<h3>2️⃣ Get Merge Request Changes (for Test Selection)</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# Extract exact changes from a specific MR
+gitdoctor mr-changes --project "dfs-core/transaction/shulka" --mr-id 1234 \
+  -o mr-changes.json --format test-selection
+</pre>
+
+<p><strong>Output:</strong> Changed files, diffs, test recommendations, JIRA tickets</p>
+
+<h3>3️⃣ Search Commits Across Repos</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# Find where specific commits landed
+gitdoctor search -f commits.txt -o results.csv
+</pre>
+
+<hr>
+
+<h2>🎯 Key Features</h2>
+
+<table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+<thead>
+<tr style="background-color: #f4f5f7;">
+<th>Feature</th>
+<th>Description</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Delta Discovery</strong></td>
+<td>Compare tags/branches across all repos</td>
+<td><code>gitdoctor delta</code></td>
+</tr>
+<tr>
+<td><strong>MR Changes</strong></td>
+<td>Extract exact changes for test selection</td>
+<td><code>gitdoctor mr-changes</code></td>
+</tr>
+<tr>
+<td><strong>HTML Reports</strong></td>
+<td>Interactive reports with charts & filters</td>
+<td><code>--format html</code></td>
+</tr>
+<tr>
+<td><strong>JIRA Integration</strong></td>
+<td>Auto-link tickets from commit messages</td>
+<td>Built-in</td>
+</tr>
+<tr>
+<td><strong>Multi-Format Output</strong></td>
+<td>CSV, JSON, HTML, test-selection</td>
+<td><code>--format &lt;type&gt;</code></td>
+</tr>
+<tr>
+<td><strong>Date Filtering</strong></td>
+<td>Scope by time range</td>
+<td><code>--after</code>, <code>--before</code></td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2>🚀 Getting Started (5 Minutes)</h2>
+
+<h3>Step 1: Clone Repository</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+git clone http://blrgitlab.comviva.com/dfs-core/automation/gitdoctor.git
+cd gitdoctor
+</pre>
+
+<h3>Step 2: Install</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .
+</pre>
+
+<h3>Step 3: Configure</h3>
+
+<p>Copy <code>config.comviva.yaml</code> to <code>config.yaml</code> and update your token:</p>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+gitlab:
+  base_url: "http://blrgitlab.comviva.com"
+  private_token: "your-gitlab-token"  # Get from: GitLab → Settings → Access Tokens
+</pre>
+
+<h3>Step 4: Run Your First Command</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# Compare two releases
+gitdoctor delta --base MobiquityPay_vX.10.15.8 --target MobiquityPay_vX.10.16.0 \
+  -o delta.html --format html
+
+# Open the report
+open delta.html
+</pre>
+
+<div style="background-color: #DEEBFF; padding: 15px; border-radius: 5px; margin: 20px 0;">
+<p>✅ <strong>Done!</strong> You now have a complete release report with all commits, JIRA tickets, and visual charts.</p>
+<p>📚 <strong>Need more details?</strong> See <code>QUICKSTART.md</code> in the repository.</p>
+</div>
+
+<hr>
+
+<h2>📋 Common Use Cases</h2>
+
+<h3>1. Release Notes Generation</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# What's new in the upcoming release?
+gitdoctor delta --base MobiquityPay_vX.10.15.8 --target MobiquityPay_vX.10.16.0 \
+  -o release-notes.html --format html
+</pre>
+
+<p><strong>Output:</strong> Complete changelog with all commits, authors, and JIRA tickets</p>
+
+<h3>2. Hotfix Verification</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# What went into the L4 patch?
+gitdoctor delta --base MobiquityPay_vX.10.15.8_PVG.B1 \
+               --target MobiquityPay_vX.10.15.8_L4Patch_19Jan26 \
+  -o hotfix-verification.csv
+</pre>
+
+<p><strong>Output:</strong> Exact list of fixes for QA testing</p>
+
+<h3>3. Test Selection for MR</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# What should we test for this merge request?
+gitdoctor mr-changes --project "dfs-core/transaction/shulka" --mr-id 1234 \
+  -o test-selection.json --format test-selection
+</pre>
+
+<p><strong>Output:</strong> Changed files with diffs, recommended test suites, JIRA tickets</p>
+
+<h3>4. Deployment Audit</h3>
+
+<pre style="background-color: #f4f5f7; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# Generate compliance report for auditors
+gitdoctor delta --base prod-release-v1 --target prod-release-v2 \
+  -o audit-report.html --format html
+</pre>
+
+<p><strong>Output:</strong> Official record of what was deployed</p>
+
+<hr>
+
+<h2>📖 Detailed Documentation</h2>
+
+<p>All comprehensive guides are in the repository:</p>
+
+<table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+<thead>
+<tr style="background-color: #f4f5f7;">
+<th>Document</th>
+<th>Purpose</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>README.md</code></td>
+<td>Overview & setup</td>
+<td>Repository root</td>
+</tr>
+<tr>
+<td><code>QUICKSTART.md</code></td>
+<td>5-minute getting started</td>
+<td>Repository root</td>
+</tr>
+<tr>
+<td><code>config.comviva.yaml</code></td>
+<td>Comviva-specific config template</td>
+<td>Repository root</td>
+</tr>
+<tr>
+<td><code>DELTA_GUIDE.md</code></td>
+<td>Complete delta command reference</td>
+<td>Repository root</td>
+</tr>
+<tr>
+<td><code>MR_CHANGES_GUIDE.md</code></td>
+<td>MR changes & test selection</td>
+<td>Repository root</td>
+</tr>
+<tr>
+<td><code>TROUBLESHOOTING.md</code></td>
+<td>Common issues & solutions</td>
+<td>Repository root</td>
+</tr>
+<tr>
+<td><code>DEMO_SCRIPT.md</code></td>
+<td>Recording/demo script</td>
+<td>Repository root</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2>❓ Quick Troubleshooting</h2>
+
+<table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+<thead>
+<tr style="background-color: #f4f5f7;">
+<th>Issue</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>401 Unauthorized</strong></td>
+<td>Regenerate GitLab token with <code>read_api</code> scope</td>
+</tr>
+<tr>
+<td><strong>Base ref not found</strong></td>
+<td>Normal - not all repos have all tags (check CSV)</td>
+</tr>
+<tr>
+<td><strong>0 commits found</strong></td>
+<td>Check direction: <code>--base</code> (older) <code>--target</code> (newer)</td>
+</tr>
+<tr>
+<td><strong>Slow performance</strong></td>
+<td>Increase <code>timeout_seconds</code> in config or use explicit mode</td>
+</tr>
+</tbody>
+</table>
+
+<div style="background-color: #FFF4E6; padding: 15px; border-radius: 5px; margin: 20px 0;">
+<p>💡 <strong>Need more help?</strong> See <code>TROUBLESHOOTING.md</code> in the repository or run with <code>-v</code> flag for detailed logging.</p>
+</div>
+
+<hr>
+
+<h2>🆕 What's New in v1.1.0 (January 2026)</h2>
+
+<div style="background-color: #DEEBFF; padding: 15px; border-radius: 5px; margin: 20px 0;">
+<p>✅ <strong>MR Changes Command</strong> - Extract exact changes from Merge Requests for intelligent test selection<br>
+✅ <strong>Test Selection Format</strong> - New output format optimized for automated test case selection<br>
+✅ <strong>CSV Export Fix</strong> - Fixed multiline commit message handling in CSV exports<br>
+✅ <strong>Comviva Config</strong> - Pre-configured <code>config.comviva.yaml</code> for internal use<br>
+✅ <strong>Demo Scripts</strong> - Ready-to-use recording scripts for team presentations</p>
+</div>
+
+<hr>
+
+<h2>📞 Support & Contact</h2>
+
+<p><strong>Repository:</strong> <a href="http://blrgitlab.comviva.com/dfs-core/automation/gitdoctor">http://blrgitlab.comviva.com/dfs-core/automation/gitdoctor</a></p>
+
+<p><strong>For Issues:</strong></p>
+<ol>
+<li>Run command with <code>-v</code> flag to get detailed logs</li>
+<li>Check <code>TROUBLESHOOTING.md</code> in the repository</li>
+<li>Contact Platform Engineering team</li>
+</ol>
+
+<p><strong>Quick Links:</strong></p>
+<ul>
+<li>📚 Full Documentation: See <code>README.md</code> in repository</li>
+<li>🚀 Quick Start: See <code>QUICKSTART.md</code></li>
+<li>🎬 Demo Guide: See <code>DEMO_SCRIPT.md</code></li>
+<li>⚙️ Configuration: See <code>config.comviva.yaml</code></li>
+</ul>
+
+<hr>
+
+<div style="background-color: #F4F5F7; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+<p><em>Last updated: January 2026 | Version 1.1.0</em></p>
+</div>
+
+</body>
+</html>
+
