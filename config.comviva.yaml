@@ -1,0 +1,76 @@
+# GitDoctor Configuration - Comviva Internal
+# 🔒 INTERNAL USE ONLY - DO NOT SHARE OUTSIDE COMVIVA
+
+# GitLab connection settings
+gitlab:
+  # Comviva Internal GitLab
+  base_url: "http://blrgitlab.comviva.com"
+  
+  # YOUR PERSONAL ACCESS TOKEN
+  # Generate at: http://blrgitlab.comviva.com/-/profile/personal_access_tokens
+  # Required scopes: api, read_api, read_repository
+  private_token: "YOUR_GITLAB_TOKEN_HERE"
+  
+  # API version
+  api_version: "v4"
+  
+  # SSL verification disabled for internal network
+  verify_ssl: false
+  
+  # Request timeout in seconds
+  timeout_seconds: 30
+
+# Scan mode configuration
+scan:
+  # Auto-discover: searches ALL projects in dfs-core automatically
+  mode: "auto_discover"
+
+# Projects section (used only in explicit mode)
+projects:
+  by_id: []
+  by_path:
+    - "dfs-core/product-domains/transaction/shulka"
+    - "dfs-core/orchestration/soe-core"
+    - "dfs-core/sdui/projects/mobiquity/mobiquity-sdui-screens"
+    - "dfs-core/mobiquity-one-issuing/microservices/soe"
+    - "dfs-core/devops/multinode_mobiquity_deployment"
+    - "dfs-core/platform/config"
+    - "dfs-core/devops/ansible_configs"
+
+# Groups to discover projects from (used in auto_discover mode)
+groups:
+  include_subgroups: true
+  by_path:
+    - "dfs-core"
+  by_id: []
+
+# Filters to restrict which projects are searched
+filters:
+  # Whitelist: only search these projects (empty = search all discovered)
+  include_project_paths: []
+  
+  # Blacklist: skip these projects
+  exclude_project_paths:
+    - "dfs-core/automation/test-repos"
+
+# JIRA integration
+jira:
+  # Comviva JIRA instance
+  base_url: "https://comviva.atlassian.net"
+  
+  # Project key filter (leave empty for all projects)
+  project_key: "MON"
+
+# Notifications
+notifications:
+  slack_webhook: null
+  
+  # Teams webhook (if configured)
+  teams_webhook: null
+
+# Common Tags for MobiquityPay:
+# - MobiquityPay_vX.10.15.8_L4Patch_19Jan26
+# - MobiquityPay_vX.10.15.8_PVG.B1
+# - MobiquityPay_vX.10.15.7_*
+# - etc.
+
