@@ -14,7 +14,7 @@ from typing import Optional
 
 from .api_client import GitLabClient, GitLabAPIError, GitLabNotFound
 from .models import MRChangesResult, CommitChange, FileChange
-from .jira_integration import JiraLinker
+from .jira_integration import JIRALinker
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class MRChangesFinder:
     def __init__(
         self,
         client: GitLabClient,
-        jira_linker: Optional[JiraLinker] = None
+        jira_linker: Optional[JIRALinker] = None
     ):
         """
         Initialize MR changes finder.
