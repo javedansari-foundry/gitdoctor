@@ -63,7 +63,7 @@ cat config.yaml | grep -A 5 "^gitlab:" | grep -v "private_token"
 ```
 
 **Say:**
-> "GitDoctor is configured to search across all projects in the dfs-core group, which includes all our microservices."
+> "GitDoctor is configured to search across all projects in the your-org group, which includes all our microservices."
 
 ---
 
@@ -90,7 +90,7 @@ gitdoctor delta \
 **While running, say:**
 > "GitDoctor is now:
 > 1. Connecting to GitLab
-> 2. Discovering all projects in our dfs-core group
+> 2. Discovering all projects in our your-org group
 > 3. For each project, fetching commits from both tags
 > 4. Computing the delta - commits in target but not in base
 > 5. Extracting JIRA tickets from commit messages
@@ -215,7 +215,7 @@ head -10 delta-X.10.15-to-X.10.15.8.csv
 ```bash
 # Example with a real MR from your project
 gitdoctor mr-changes \
-  --project "dfs-core/product-domains/transaction/shulka" \
+  --project "your-org/product-domains/transaction/shulka" \
   --mr 123 \
   --format test-selection \
   -o mr-changes-example.json

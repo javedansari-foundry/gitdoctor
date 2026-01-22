@@ -54,7 +54,7 @@ OUTPUT FILES
 ================================================================================
 KEY POINTS TO MENTION
 ================================================================================
-1. Searches ALL microservices in dfs-core automatically
+1. Searches ALL microservices in your-org automatically
 2. Extracts JIRA tickets from commit messages
 3. Generates clickable links to GitLab and JIRA
 4. Multiple export formats (HTML, CSV, JSON)

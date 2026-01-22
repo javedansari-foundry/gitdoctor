@@ -20,31 +20,31 @@ When deploying code, you need to know:
 gitdoctor mr-changes --project 123 --mr 456 -o mr-changes.json
 
 # Using project path (e.g., from GitLab URL)
-gitdoctor mr-changes --project "dfs-core/product-domains/transaction/shulka" --mr 789 -o changes.json
+gitdoctor mr-changes --project "your-org/product-domains/transaction/shulka" --mr 789 -o changes.json
 ```
 
 ### Extract from Your GitLab URL
 
 If you have a GitLab URL like:
 ```
-http://blrgitlab.comviva.com/dfs-core/product-domains/transaction/shulka/merge_requests/123
+http://gitlab.example.com/your-org/product-domains/transaction/shulka/merge_requests/123
 ```
 
 Extract:
-- **Project path**: `dfs-core/product-domains/transaction/shulka`
+- **Project path**: `your-org/product-domains/transaction/shulka`
 - **MR IID**: `123`
 
 Run:
 ```bash
 gitdoctor mr-changes \
-  --project "dfs-core/product-domains/transaction/shulka" \
+  --project "your-org/product-domains/transaction/shulka" \
   --mr 123 \
   -o mr-changes.json
 ```
 
 Or from a commit URL like:
 ```
-http://blrgitlab.comviva.com/dfs-core/product-domains/transaction/shulka/commit/ed8d4806309d49b8d894078ebaa18183ac93c140
+http://gitlab.example.com/your-org/product-domains/transaction/shulka/commit/ed8d4806309d49b8d894078ebaa18183ac93c140
 ```
 
 First, find which MR contains this commit, then use the command above.
@@ -230,7 +230,7 @@ for suite in test_suites:
 
 For your use case with:
 ```
-http://blrgitlab.comviva.com/dfs-core/product-domains/transaction/shulka/commit/ed8d4806...
+http://gitlab.example.com/your-org/product-domains/transaction/shulka/commit/ed8d4806...
 ```
 
 1. **Find the MR** that contains this commit:
@@ -241,10 +241,10 @@ http://blrgitlab.comviva.com/dfs-core/product-domains/transaction/shulka/commit/
 2. **Extract changeset**:
 ```bash
 gitdoctor mr-changes \
-  --project "dfs-core/product-domains/transaction/shulka" \
+  --project "your-org/product-domains/transaction/shulka" \
   --mr 123 \
   --format test-selection \
-  --jira-url http://blrgitlab.comviva.com \
+  --jira-url http://gitlab.example.com \
   -o deployment-changes.json
 ```
 

@@ -33,17 +33,17 @@ nano config.yaml  # or use your preferred editor
 **Required settings:**
 ```yaml
 gitlab:
-  base_url: "http://blrgitlab.comviva.com"
+  base_url: "http://gitlab.example.com"
   private_token: "YOUR_GITLAB_TOKEN_HERE"
   verify_ssl: false
 
 jira:
-  base_url: "https://comviva.atlassian.net"
+  base_url: "https://jira.company.com"
   project_key: "MON"  # Optional: your project key
 ```
 
 **Get your GitLab token:**
-1. Go to: http://blrgitlab.comviva.com/-/profile/personal_access_tokens
+1. Go to: http://gitlab.example.com/-/profile/personal_access_tokens
 2. Create token with scopes: `api`, `read_api`, `read_repository`
 3. Copy token to `config.yaml`
 
@@ -65,7 +65,7 @@ gitdoctor mr-changes --project 127 --mr 123 -o test-input.json
 ```bash
 # Get MR changes in test-selection format
 gitdoctor mr-changes \
-  --project "dfs-core/product-domains/transaction/shulka" \
+  --project "your-org/product-domains/transaction/shulka" \
   --mr 456 \
   --format test-selection \
   -o test-input.json
@@ -181,15 +181,15 @@ Common project IDs for your team:
 
 | Project | ID | Path |
 |---------|----|----|
-| Shulka | 127 | dfs-core/product-domains/transaction/shulka |
-| SOE | TBD | dfs-core/mobiquity-one-issuing/microservices/soe |
-| SOE Core | TBD | dfs-core/orchestration/soe-core |
+| Shulka | 127 | your-org/product-domains/transaction/shulka |
+| SOE | TBD | your-org/mobiquity-one-issuing/microservices/soe |
+| SOE Core | TBD | your-org/orchestration/soe-core |
 
 **Find project ID:**
 ```bash
 # Visit project in GitLab, check URL or use API
 curl -H "PRIVATE-TOKEN: your-token" \
-  "http://blrgitlab.comviva.com/api/v4/projects/dfs-core%2Fproduct-domains%2Ftransaction%2Fshulka" \
+  "http://gitlab.example.com/api/v4/projects/your-org%2Fproduct-domains%2Ftransaction%2Fshulka" \
   | jq '.id'
 ```
 

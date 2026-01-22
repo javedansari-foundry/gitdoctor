@@ -54,3 +54,13 @@ results*.csv
 .DS_Store
 Thumbs.db
 
+
+# Company-specific configuration and output files
+config.yaml
+config-*.yaml
+*-delta.html
+*-delta.csv
+commit-changes.json
+*.html
+*.csv
+results*.csv

@@ -46,7 +46,7 @@ echo ""
 cat config.yaml | grep -A 5 "^gitlab:" | grep -v "private_token"
 
 echo ""
-echo "✅ Connected to: http://blrgitlab.comviva.com"
+echo "✅ Connected to: http://gitlab.example.com"
 echo ""
 read -p "Press Enter to continue..."
 

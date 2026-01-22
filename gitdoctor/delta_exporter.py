@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 from datetime import datetime
 from collections import defaultdict
 
-from .models import DeltaResult, DeltaSummary
+from .models import DeltaResult, DeltaSummary, MRResult, MRSummary, MergeRequest
 
 
 logger = logging.getLogger(__name__)
@@ -1831,6 +1831,730 @@ class DeltaHTMLExporter:
         """
 
 
+class MRCSVExporter:
+    """
+    Exports merge request results to CSV format.
+    """
+    
+    HEADERS = [
+        "project_path",
+        "project_name",
+        "project_id",
+        "project_web_url",
+        "mr_iid",
+        "title",
+        "description",
+        "state",
+        "source_branch",
+        "target_branch",
+        "author_name",
+        "author_username",
+        "merged_by_name",
+        "merged_by_username",
+        "merged_at",
+        "created_at",
+        "updated_at",
+        "web_url",
+        "merge_commit_sha",
+        "labels",
+        "jira_tickets",
+        "jira_ticket_urls",
+        "error"
+    ]
+    
+    def export(self, results: List[MRResult], output_path: str, jira_linker=None) -> None:
+        """
+        Export MR results to CSV file.
+        
+        Args:
+            results: List of MRResult objects
+            output_path: Path to output CSV file
+            jira_linker: Optional JIRALinker instance for ticket extraction
+        """
+        output_file = Path(output_path)
+        
+        logger.info(f"Exporting MR results to {output_path}")
+        
+        try:
+            with output_file.open('w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=self.HEADERS)
+                writer.writeheader()
+                
+                rows_written = 0
+                
+                for result in results:
+                    if result.merge_requests:
+                        for mr in result.merge_requests:
+                            row = self._create_row(result, mr, jira_linker)
+                            writer.writerow(row)
+                            rows_written += 1
+                    else:
+                        # Write one row for project even if no MRs
+                        row = self._create_empty_row(result)
+                        writer.writerow(row)
+                        rows_written += 1
+                
+            logger.info(f"Successfully exported {rows_written} rows to {output_path}")
+            
+        except IOError as e:
+            logger.error(f"Failed to write CSV file: {e}")
+            raise
+    
+    def _create_row(self, result: MRResult, mr: MergeRequest, jira_linker=None) -> dict:
+        """Create a CSV row for a merge request."""
+        # Extract JIRA tickets if linker is provided
+        jira_tickets = ""
+        jira_ticket_urls = ""
+        
+        if jira_linker:
+            text = f"{mr.title} {mr.description}"
+            tickets = jira_linker.extract_tickets_from_text(text)
+            if tickets:
+                jira_tickets = "|".join(sorted(tickets))
+                jira_ticket_urls = "|".join([jira_linker.get_ticket_url(t) for t in sorted(tickets)])
+        
+        return {
+            "project_path": result.project_path,
+            "project_name": result.project_name,
+            "project_id": result.project_id,
+            "project_web_url": result.project_web_url,
+            "mr_iid": mr.mr_iid,
+            "title": mr.title,
+            "description": mr.description[:500] if mr.description else "",  # Truncate long descriptions
+            "state": mr.state,
+            "source_branch": mr.source_branch,
+            "target_branch": mr.target_branch,
+            "author_name": mr.author_name,
+            "author_username": mr.author_username,
+            "merged_by_name": mr.merged_by_name or "",
+            "merged_by_username": mr.merged_by_username or "",
+            "merged_at": mr.merged_at or "",
+            "created_at": mr.created_at,
+            "updated_at": mr.updated_at,
+            "web_url": mr.web_url,
+            "merge_commit_sha": mr.merge_commit_sha or "",
+            "labels": "|".join(mr.labels) if mr.labels else "",
+            "jira_tickets": jira_tickets,
+            "jira_ticket_urls": jira_ticket_urls,
+            "error": result.error or ""
+        }
+    
+    def _create_empty_row(self, result: MRResult) -> dict:
+        """Create a CSV row for a project with no MRs."""
+        return {
+            "project_path": result.project_path,
+            "project_name": result.project_name,
+            "project_id": result.project_id,
+            "project_web_url": result.project_web_url,
+            "mr_iid": "",
+            "title": "",
+            "description": "",
+            "state": "",
+            "source_branch": "",
+            "target_branch": "",
+            "author_name": "",
+            "author_username": "",
+            "merged_by_name": "",
+            "merged_by_username": "",
+            "merged_at": "",
+            "created_at": "",
+            "updated_at": "",
+            "web_url": "",
+            "merge_commit_sha": "",
+            "labels": "",
+            "jira_tickets": "",
+            "jira_ticket_urls": "",
+            "error": result.error or ""
+        }
+
+
+class MRJSONExporter:
+    """
+    Exports merge request results to JSON format.
+    """
+    
+    def export(self, results: List[MRResult], output_path: str) -> None:
+        """
+        Export MR results to JSON file.
+        
+        Args:
+            results: List of MRResult objects
+            output_path: Path to output JSON file
+        """
+        output_file = Path(output_path)
+        
+        logger.info(f"Exporting MR results to {output_path}")
+        
+        try:
+            data = []
+            for result in results:
+                result_dict = {
+                    "project": {
+                        "id": result.project_id,
+                        "name": result.project_name,
+                        "path": result.project_path,
+                        "web_url": result.project_web_url
+                    },
+                    "filters": {
+                        "target_branch": result.target_branch,
+                        "source_branch": result.source_branch,
+                        "state": result.state_filter
+                    },
+                    "statistics": {
+                        "total_mrs": result.total_mrs
+                    },
+                    "merge_requests": [
+                        {
+                            "iid": mr.mr_iid,
+                            "title": mr.title,
+                            "description": mr.description,
+                            "state": mr.state,
+                            "source_branch": mr.source_branch,
+                            "target_branch": mr.target_branch,
+                            "author": {
+                                "name": mr.author_name,
+                                "username": mr.author_username
+                            },
+                            "merged_by": {
+                                "name": mr.merged_by_name,
+                                "username": mr.merged_by_username
+                            } if mr.merged_by_name else None,
+                            "merged_at": mr.merged_at,
+                            "created_at": mr.created_at,
+                            "web_url": mr.web_url,
+                            "merge_commit_sha": mr.merge_commit_sha,
+                            "labels": mr.labels
+                        }
+                        for mr in result.merge_requests
+                    ],
+                    "error": result.error
+                }
+                data.append(result_dict)
+            
+            with output_file.open('w', encoding='utf-8') as jsonfile:
+                json.dump(data, jsonfile, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Successfully exported {len(results)} project results to {output_path}")
+            
+        except IOError as e:
+            logger.error(f"Failed to write JSON file: {e}")
+            raise
+
+
+class MRHTMLExporter:
+    """
+    Exports merge request results to an interactive HTML report.
+    """
+    
+    def export(self, results: List[MRResult], output_path: str, summary: MRSummary = None, jira_linker=None) -> None:
+        """
+        Export MR results to HTML file.
+        """
+        output_file = Path(output_path)
+        
+        logger.info(f"Exporting MR results to {output_path}")
+        
+        try:
+            html_content = self._generate_html(results, summary, jira_linker)
+            
+            with output_file.open('w', encoding='utf-8') as htmlfile:
+                htmlfile.write(html_content)
+            
+            logger.info(f"Successfully exported HTML report to {output_path}")
+            
+        except IOError as e:
+            logger.error(f"Failed to write HTML file: {e}")
+            raise
+    
+    def _collect_statistics(self, results: List[MRResult], jira_linker=None) -> Dict[str, Any]:
+        """Collect all statistics for the report."""
+        stats = {
+            'total_mrs': 0,
+            'projects_searched': len(results),
+            'projects_with_mrs': 0,
+            'projects_with_errors': 0,
+            'unique_authors': set(),
+            'jira_tickets': set(),
+            'mrs_by_project': defaultdict(int),
+            'mrs_by_author': defaultdict(int),
+            'mrs_by_date': defaultdict(int),
+            'all_mrs': [],
+            'ticket_summary': defaultdict(lambda: {'count': 0, 'projects': set(), 'mrs': []})
+        }
+        
+        for result in results:
+            if result.has_mrs:
+                stats['projects_with_mrs'] += 1
+            if result.error:
+                stats['projects_with_errors'] += 1
+            
+            stats['mrs_by_project'][result.project_name] = len(result.merge_requests)
+            stats['total_mrs'] += len(result.merge_requests)
+            
+            for mr in result.merge_requests:
+                stats['unique_authors'].add(mr.author_name)
+                stats['mrs_by_author'][mr.author_name] += 1
+                
+                # Extract date for timeline
+                date_str = mr.merged_at[:10] if mr.merged_at else (mr.created_at[:10] if mr.created_at else None)
+                if date_str:
+                    stats['mrs_by_date'][date_str] += 1
+                
+                # Extract JIRA tickets
+                if jira_linker:
+                    text = f"{mr.title} {mr.description}"
+                    tickets = jira_linker.extract_tickets_from_text(text)
+                    for ticket in tickets:
+                        stats['jira_tickets'].add(ticket)
+                        stats['ticket_summary'][ticket]['count'] += 1
+                        stats['ticket_summary'][ticket]['projects'].add(result.project_name)
+                        stats['ticket_summary'][ticket]['mrs'].append(mr.mr_iid)
+                        stats['ticket_summary'][ticket]['url'] = jira_linker.get_ticket_url(ticket)
+                
+                # Store MR with project info
+                stats['all_mrs'].append({
+                    'project_name': result.project_name,
+                    'project_path': result.project_path,
+                    'project_url': result.project_web_url,
+                    'iid': mr.mr_iid,
+                    'title': mr.title,
+                    'description': mr.description[:200] if mr.description else "",
+                    'state': mr.state,
+                    'source_branch': mr.source_branch,
+                    'target_branch': mr.target_branch,
+                    'author': mr.author_name,
+                    'merged_by': mr.merged_by_name,
+                    'merged_at': mr.merged_at,
+                    'created_at': mr.created_at,
+                    'url': mr.web_url,
+                    'tickets': list(jira_linker.extract_tickets_from_text(
+                        f"{mr.title} {mr.description}"
+                    )) if jira_linker else []
+                })
+        
+        # Sort MRs by date (newest first)
+        stats['all_mrs'].sort(key=lambda x: x['merged_at'] or x['created_at'] or '', reverse=True)
+        
+        # Convert sets to lists
+        stats['unique_authors'] = list(stats['unique_authors'])
+        stats['jira_tickets'] = list(stats['jira_tickets'])
+        
+        for ticket_id in stats['ticket_summary']:
+            stats['ticket_summary'][ticket_id]['projects'] = list(
+                stats['ticket_summary'][ticket_id]['projects']
+            )
+        
+        return stats
+    
+    def _generate_html(self, results: List[MRResult], summary: MRSummary = None, jira_linker=None) -> str:
+        """Generate the complete HTML content."""
+        # Get filter info
+        target_branch = results[0].target_branch if results else "N/A"
+        source_branch = results[0].source_branch if results else "N/A"
+        state_filter = results[0].state_filter if results else "merged"
+        
+        # Collect statistics
+        stats = self._collect_statistics(results, jira_linker)
+        
+        # Generate timestamp
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Prepare data for JavaScript
+        mrs_json = json.dumps(stats['all_mrs'], ensure_ascii=False)
+        projects_data = json.dumps(dict(stats['mrs_by_project']), ensure_ascii=False)
+        authors_data = json.dumps(dict(stats['mrs_by_author']), ensure_ascii=False)
+        ticket_data = json.dumps(dict(stats['ticket_summary']), ensure_ascii=False)
+        
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitDoctor MR Report</title>
+    <style>
+        :root {{
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --accent-primary: #10b981;
+            --accent-secondary: #059669;
+            --accent-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+        }}
+        
+        [data-theme="dark"] {{
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+        }}
+        
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        
+        body {{
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }}
+        
+        .app-container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
+        
+        .header {{
+            background: var(--accent-gradient);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            margin-bottom: 24px;
+            color: white;
+        }}
+        
+        .header h1 {{ font-size: 2rem; font-weight: 700; margin-bottom: 10px; }}
+        .header-subtitle {{ font-size: 1.1rem; opacity: 0.9; }}
+        
+        .filter-badges {{
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }}
+        
+        .filter-badge {{
+            background: rgba(255,255,255,0.15);
+            border-radius: var(--radius-sm);
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }}
+        
+        .filter-label {{ font-size: 0.7rem; text-transform: uppercase; opacity: 0.8; display: block; }}
+        .filter-value {{ font-weight: 600; }}
+        
+        .summary-cards {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+        
+        .stat-card {{
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border: 1px solid var(--border-color);
+        }}
+        
+        .stat-icon {{ font-size: 2.5rem; }}
+        .stat-value {{ font-size: 2rem; font-weight: 700; color: var(--accent-primary); }}
+        .stat-label {{ font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; }}
+        
+        .content-card {{
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }}
+        
+        .content-card h2 {{ margin-bottom: 20px; font-size: 1.3rem; }}
+        
+        .mr-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }}
+        
+        .mr-table th {{
+            text-align: left;
+            padding: 14px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }}
+        
+        .mr-table td {{
+            padding: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }}
+        
+        .mr-table tr:hover {{ background: var(--bg-tertiary); }}
+        
+        .mr-link {{
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 500;
+        }}
+        
+        .mr-link:hover {{ text-decoration: underline; }}
+        
+        .branch-badge {{
+            display: inline-block;
+            background: var(--bg-tertiary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-family: monospace;
+        }}
+        
+        .ticket-badge {{
+            display: inline-block;
+            background: #0052CC;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-decoration: none;
+            margin-left: 4px;
+        }}
+        
+        .ticket-badge:hover {{ background: #0065FF; }}
+        
+        .bar-chart {{ display: flex; flex-direction: column; gap: 8px; }}
+        .bar-item {{ display: flex; align-items: center; gap: 12px; }}
+        .bar-label {{ width: 150px; font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+        .bar-track {{ flex: 1; height: 24px; background: var(--bg-tertiary); border-radius: var(--radius-sm); overflow: hidden; }}
+        .bar-fill {{ height: 100%; background: var(--accent-gradient); border-radius: var(--radius-sm); }}
+        .bar-value {{ width: 40px; text-align: right; font-weight: 600; font-size: 0.9rem; }}
+        
+        .charts-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+        }}
+        
+        .chart-section {{
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            padding: 20px;
+        }}
+        
+        .chart-section h3 {{ margin-bottom: 16px; font-size: 1rem; }}
+        
+        .footer {{
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }}
+        
+        @media (max-width: 768px) {{
+            .charts-grid {{ grid-template-columns: 1fr; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <h1>🔀 GitDoctor MR Report</h1>
+            <p class="header-subtitle">Merge Request Tracking</p>
+            
+            <div class="filter-badges">
+                <div class="filter-badge">
+                    <span class="filter-label">State</span>
+                    <span class="filter-value">{self._escape_html(state_filter)}</span>
+                </div>
+                {f'<div class="filter-badge"><span class="filter-label">Target Branch</span><span class="filter-value">{self._escape_html(target_branch)}</span></div>' if target_branch else ''}
+                {f'<div class="filter-badge"><span class="filter-label">Source Branch</span><span class="filter-value">{self._escape_html(source_branch)}</span></div>' if source_branch else ''}
+            </div>
+        </header>
+        
+        <section class="summary-cards">
+            <div class="stat-card">
+                <div class="stat-icon">🔀</div>
+                <div class="stat-info">
+                    <div class="stat-value">{stats['total_mrs']}</div>
+                    <div class="stat-label">Total MRs</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📁</div>
+                <div class="stat-info">
+                    <div class="stat-value">{stats['projects_with_mrs']}</div>
+                    <div class="stat-label">Projects with MRs</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-info">
+                    <div class="stat-value">{len(stats['unique_authors'])}</div>
+                    <div class="stat-label">Contributors</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🎫</div>
+                <div class="stat-info">
+                    <div class="stat-value">{len(stats['jira_tickets'])}</div>
+                    <div class="stat-label">JIRA Tickets</div>
+                </div>
+            </div>
+        </section>
+        
+        <div class="charts-grid">
+            <div class="chart-section">
+                <h3>📁 MRs by Project</h3>
+                <div class="bar-chart" id="projectChart"></div>
+            </div>
+            <div class="chart-section">
+                <h3>👥 Top Contributors</h3>
+                <div class="bar-chart" id="authorChart"></div>
+            </div>
+        </div>
+        
+        <div class="content-card" style="margin-top: 24px;">
+            <h2>🔀 All Merge Requests</h2>
+            <table class="mr-table">
+                <thead>
+                    <tr>
+                        <th>MR</th>
+                        <th>Title</th>
+                        <th>Project</th>
+                        <th>Author</th>
+                        <th>Branches</th>
+                        <th>Merged</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {self._generate_mr_rows(results, jira_linker)}
+                </tbody>
+            </table>
+        </div>
+        
+        <footer class="footer">
+            Generated by GitDoctor on {timestamp}
+        </footer>
+    </div>
+    
+    <script>
+        const projectsData = {projects_data};
+        const authorsData = {authors_data};
+        
+        function renderBarChart(containerId, data, limit) {{
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const sorted = Object.entries(data)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit || 8);
+            
+            if (sorted.length === 0) {{
+                container.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No data</p>';
+                return;
+            }}
+            
+            const maxValue = sorted[0][1];
+            
+            let html = '';
+            sorted.forEach(([label, value]) => {{
+                const percentage = (value / maxValue) * 100;
+                const truncatedLabel = label.length > 20 ? label.substring(0, 17) + '...' : label;
+                html += `
+                    <div class="bar-item">
+                        <div class="bar-label" title="${{label}}">${{truncatedLabel}}</div>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="width: ${{percentage}}%"></div>
+                        </div>
+                        <div class="bar-value">${{value}}</div>
+                    </div>
+                `;
+            }});
+            
+            container.innerHTML = html;
+        }}
+        
+        document.addEventListener('DOMContentLoaded', function() {{
+            renderBarChart('projectChart', projectsData, 8);
+            renderBarChart('authorChart', authorsData, 8);
+        }});
+    </script>
+</body>
+</html>"""
+        
+        return html
+    
+    def _generate_mr_rows(self, results: List[MRResult], jira_linker=None) -> str:
+        """Generate table rows for all MRs."""
+        html = ""
+        
+        # Collect all MRs with project info
+        all_mrs = []
+        for result in results:
+            for mr in result.merge_requests:
+                all_mrs.append((result, mr))
+        
+        # Sort by merged date (newest first)
+        all_mrs.sort(key=lambda x: x[1].merged_at or x[1].created_at or '', reverse=True)
+        
+        for result, mr in all_mrs[:100]:  # Limit to 100 rows
+            date_str = mr.merged_at[:10] if mr.merged_at else (mr.created_at[:10] if mr.created_at else "N/A")
+            
+            # Extract tickets
+            tickets_html = ""
+            if jira_linker:
+                tickets = jira_linker.extract_tickets_from_text(f"{mr.title} {mr.description}")
+                if tickets:
+                    tickets_html = " ".join([
+                        f'<a href="{jira_linker.get_ticket_url(t)}" class="ticket-badge" target="_blank">{t}</a>'
+                        for t in sorted(tickets)
+                    ])
+            
+            html += f"""
+            <tr>
+                <td><a href="{mr.web_url}" class="mr-link" target="_blank">!{mr.mr_iid}</a></td>
+                <td>{self._escape_html(self._truncate(mr.title, 60))} {tickets_html}</td>
+                <td>{self._escape_html(result.project_name)}</td>
+                <td>{self._escape_html(mr.author_name)}</td>
+                <td>
+                    <span class="branch-badge">{self._escape_html(mr.source_branch[:20])}</span>
+                    → <span class="branch-badge">{self._escape_html(mr.target_branch[:20])}</span>
+                </td>
+                <td>{date_str}</td>
+            </tr>
+            """
+        
+        if len(all_mrs) > 100:
+            html += f'<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">... and {len(all_mrs) - 100} more MRs</td></tr>'
+        
+        return html
+    
+    def _escape_html(self, text: str) -> str:
+        """Escape HTML special characters."""
+        if not text:
+            return ""
+        return (str(text)
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace('"', "&quot;")
+                .replace("'", "&#x27;"))
+    
+    def _truncate(self, text: str, max_len: int) -> str:
+        """Truncate text with ellipsis."""
+        if not text:
+            return ""
+        if len(text) <= max_len:
+            return text
+        return text[:max_len - 3] + "..."
+
+
 def get_exporter(format_type: str):
     """
     Get appropriate exporter based on format type.
@@ -1848,6 +2572,34 @@ def get_exporter(format_type: str):
         'csv': DeltaCSVExporter,
         'json': DeltaJSONExporter,
         'html': DeltaHTMLExporter
+    }
+    
+    if format_type not in exporters:
+        raise ValueError(
+            f"Unsupported format: {format_type}. "
+            f"Supported formats: {', '.join(exporters.keys())}"
+        )
+    
+    return exporters[format_type]()
+
+
+def get_mr_exporter(format_type: str):
+    """
+    Get appropriate MR exporter based on format type.
+    
+    Args:
+        format_type: One of 'csv', 'json', 'html'
+        
+    Returns:
+        MR Exporter instance
+        
+    Raises:
+        ValueError: If format_type is not supported
+    """
+    exporters = {
+        'csv': MRCSVExporter,
+        'json': MRJSONExporter,
+        'html': MRHTMLExporter
     }
     
     if format_type not in exporters:
