@@ -666,6 +666,29 @@ class GitLabClient:
         response = self._make_request("GET", endpoint)
         return response.json()
 
+    def get_commit_merge_requests(
+        self,
+        project_id: int,
+        sha: str,
+    ) -> List[Dict[str, Any]]:
+        """List merge requests that contain a commit."""
+        encoded = quote(sha, safe="")
+        endpoint = f"projects/{project_id}/repository/commits/{encoded}/merge_requests"
+        return self._get_paginated(endpoint)
+
+    def list_branches(
+        self,
+        project_id: int,
+        search: Optional[str] = None,
+        per_page: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """List repository branches, optionally filtered by search substring."""
+        endpoint = f"projects/{project_id}/repository/branches"
+        params = {}
+        if search:
+            params["search"] = search
+        return self._get_paginated(endpoint, params=params, per_page=per_page)
+
     def test_connection(self) -> bool:
         """
         Test the connection to GitLab API.

@@ -10,6 +10,7 @@ from typing import List, Optional, Dict, Any
 from collections import defaultdict
 
 from .api_client import GitLabClient, GitLabAPIError, GitLabNotFound
+from .flow_policy import branch_matches_any_prefix
 from .models import MergeRequest, MRResult, MRSummary
 
 
@@ -46,7 +47,8 @@ class MRFinder:
         merged_after: Optional[str] = None,
         merged_before: Optional[str] = None,
         created_after: Optional[str] = None,
-        created_before: Optional[str] = None
+        created_before: Optional[str] = None,
+        source_branch_prefix: Optional[str] = None,
     ) -> List[MRResult]:
         """
         Find merge requests across all configured projects.
@@ -79,7 +81,8 @@ class MRFinder:
                 merged_after=merged_after,
                 merged_before=merged_before,
                 created_after=created_after,
-                created_before=created_before
+                created_before=created_before,
+                source_branch_prefix=source_branch_prefix,
             )
             results.append(result)
         
@@ -99,7 +102,8 @@ class MRFinder:
         merged_after: Optional[str],
         merged_before: Optional[str],
         created_after: Optional[str],
-        created_before: Optional[str]
+        created_before: Optional[str],
+        source_branch_prefix: Optional[str] = None,
     ) -> MRResult:
         """
         Fetch merge requests for a single project.
@@ -122,22 +126,36 @@ class MRFinder:
         )
         
         try:
-            # Fetch MRs from GitLab API
+            # GitLab API uses exact source_branch; use prefix filter client-side when needed
+            api_source = source_branch
+            if source_branch_prefix and source_branch == source_branch_prefix:
+                api_source = None
+
             mr_data = self.client.list_merge_requests(
                 project_id=project.id,
                 state=state,
                 target_branch=target_branch,
-                source_branch=source_branch,
+                source_branch=api_source,
                 merged_after=merged_after,
                 merged_before=merged_before,
                 created_after=created_after,
                 created_before=created_before
             )
-            
-            # Convert API response to MergeRequest objects
+
             merge_requests = []
             for mr in mr_data:
-                merge_requests.append(MergeRequest.from_api_response(mr))
+                parsed = MergeRequest.from_api_response(mr)
+                if source_branch_prefix and not (
+                    parsed.source_branch or ""
+                ).startswith(source_branch_prefix):
+                    if source_branch and not branch_matches_any_prefix(
+                        parsed.source_branch, [source_branch]
+                    ):
+                        continue
+                elif source_branch and parsed.source_branch != source_branch:
+                    if not branch_matches_any_prefix(parsed.source_branch, [source_branch]):
+                        continue
+                merge_requests.append(parsed)
             
             result.merge_requests = merge_requests
             result.total_mrs = len(merge_requests)

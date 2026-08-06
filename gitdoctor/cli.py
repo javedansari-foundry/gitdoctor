@@ -23,6 +23,15 @@ from .mr_changes_exporter import get_mr_changes_exporter
 from .models import DeltaSummary, MRSummary, MRChangesResult
 from .jira_integration import create_jira_linker
 from .notifications import create_slack_notifier, create_teams_notifier
+from .cli_utils import filter_projects_by_cli_args, parse_date, validate_date_range
+from .flow_handlers import (
+    handle_flow_report_command,
+    handle_release_check_command,
+    handle_validate_mr_command,
+    handle_flow_exception_command,
+)
+from .sprint_finder import SprintFinder, filter_projects_by_scope
+from .sprint_exporter import get_sprint_exporter
 
 
 # Configure logging
@@ -35,117 +44,6 @@ def setup_logging(verbose: bool = False):
         format=format_str,
         datefmt="%Y-%m-%d %H:%M:%S"
     )
-
-
-def parse_date(date_str: str) -> datetime:
-    """
-    Parse date string in YYYY-MM-DD format.
-    
-    Args:
-        date_str: Date string in YYYY-MM-DD format
-        
-    Returns:
-        datetime object
-        
-    Raises:
-        ValueError: If date format is invalid
-    """
-    try:
-        return datetime.strptime(date_str, "%Y-%m-%d")
-    except ValueError:
-        raise ValueError(
-            f"Invalid date format: '{date_str}'. Expected format: YYYY-MM-DD (e.g., 2025-09-01)"
-        )
-
-
-def filter_projects_by_cli_args(
-    projects: List,
-    project_paths: Optional[str] = None,
-    project_ids: Optional[str] = None
-) -> List:
-    """
-    Filter projects based on CLI arguments.
-    
-    Args:
-        projects: List of ProjectInfo objects from config
-        project_paths: Comma-separated project paths (e.g., "path1,path2")
-        project_ids: Comma-separated project IDs (e.g., "123,456")
-        
-    Returns:
-        Filtered list of ProjectInfo objects
-    """
-    logger = logging.getLogger(__name__)
-    
-    if not project_paths and not project_ids:
-        return projects
-    
-    filtered = []
-    
-    # Filter by paths if provided
-    if project_paths:
-        paths = [p.strip() for p in project_paths.split(',')]
-        path_set = set(paths)
-        for project in projects:
-            if project.path_with_namespace in path_set:
-                filtered.append(project)
-        logger.info(f"Filtered to {len(filtered)} project(s) by path: {', '.join(paths)}")
-        return filtered
-    
-    # Filter by IDs if provided
-    if project_ids:
-        try:
-            ids = [int(id_str.strip()) for id_str in project_ids.split(',')]
-            id_set = set(ids)
-            for project in projects:
-                if project.id in id_set:
-                    filtered.append(project)
-            logger.info(f"Filtered to {len(filtered)} project(s) by ID: {', '.join(map(str, ids))}")
-            return filtered
-        except ValueError as e:
-            logger.error(f"Invalid project IDs format: {e}. Expected comma-separated numbers.")
-            raise ValueError(f"Invalid project IDs: {project_ids}. Expected format: '123,456,789'")
-    
-    return projects
-
-
-def validate_date_range(after_date: Optional[str], before_date: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Validate and convert date range to ISO 8601 format.
-    
-    Date range is now OPTIONAL for delta discovery since the new paginated
-    approach handles large repositories without timeouts.
-    
-    Args:
-        after_date: Start date in YYYY-MM-DD format (optional)
-        before_date: End date in YYYY-MM-DD format (optional)
-        
-    Returns:
-        Tuple of (after_date, before_date) as ISO 8601 strings, or (None, None) if not provided
-        
-    Raises:
-        ValueError: If date format is invalid or date order is wrong
-    """
-    after_date_iso = None
-    before_date_iso = None
-    
-    # Parse after date if provided
-    if after_date:
-        after_dt = parse_date(after_date)
-        after_date_iso = after_dt.strftime("%Y-%m-%dT00:00:00Z")
-    
-    # Parse before date if provided
-    if before_date:
-        before_dt = parse_date(before_date)
-        before_date_iso = before_dt.strftime("%Y-%m-%dT23:59:59Z")
-        
-        # If both provided, validate date order
-        if after_date:
-            if after_dt >= before_dt:
-                raise ValueError(
-                    f"Invalid date range: --after ({after_dt.date()}) must be before --before ({before_dt.date()})"
-                )
-    
-    return after_date_iso, before_date_iso
 
 
 def write_results_to_csv(results: List[CommitSearchResult], output_path: str):
@@ -729,6 +627,102 @@ def handle_mr_command(args):
         sys.exit(1)
 
 
+def handle_sprint_command(args):
+    """Handle the sprint subcommand (commit velocity across repos)."""
+    logger = logging.getLogger(__name__)
+
+    if not args.after or not args.before:
+        logger.error("Sprint reporting requires both --after and --before dates.")
+        sys.exit(1)
+
+    try:
+        logger.info(f"Loading configuration from {args.config}")
+        try:
+            config = load_config(args.config)
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {args.config}")
+            sys.exit(1)
+        except ConfigError as e:
+            logger.error(f"Configuration error: {e}")
+            sys.exit(1)
+
+        client = GitLabClient(
+            base_url=config.gitlab.base_url,
+            private_token=config.gitlab.private_token,
+            api_version=config.gitlab.api_version,
+            verify_ssl=config.gitlab.verify_ssl,
+            timeout_seconds=config.gitlab.timeout_seconds,
+        )
+
+        try:
+            logger.info("Testing GitLab connection...")
+            client.test_connection()
+            logger.info("  Connection successful")
+        except GitLabAPIError as e:
+            logger.error(f"Failed to connect to GitLab: {e}")
+            sys.exit(1)
+
+        projects = resolve_projects(config, client)
+        if not projects:
+            logger.error("No projects found. Check your configuration.")
+            sys.exit(1)
+
+        cli_project_paths = getattr(args, "projects", None)
+        cli_project_ids = getattr(args, "project_ids", None)
+        if cli_project_paths or cli_project_ids:
+            if cli_project_ids:
+                try:
+                    ids = [int(id_str.strip()) for id_str in cli_project_ids.split(",")]
+                    id_set = set(ids)
+                    projects = [p for p in projects if p.id in id_set]
+                except ValueError as e:
+                    logger.error(f"Invalid project IDs format: {e}")
+                    sys.exit(1)
+            elif cli_project_paths:
+                projects = filter_projects_by_cli_args(
+                    projects, project_paths=cli_project_paths, project_ids=None
+                )
+
+        projects = filter_projects_by_scope(projects, args.scope)
+        if not projects:
+            logger.error(f"No projects match scope '{args.scope}'.")
+            sys.exit(1)
+
+        logger.info(f"  Will search across {len(projects)} project(s) (scope: {args.scope})")
+
+        try:
+            since_iso, until_iso = validate_date_range(args.after, args.before)
+        except ValueError as e:
+            logger.error(f"Date validation error: {e}")
+            sys.exit(1)
+
+        finder = SprintFinder(client, projects)
+        results = finder.find_sprint_commits(args.ref, since_iso, until_iso)
+        summary = finder.generate_summary(
+            results,
+            ref_name=args.ref,
+            date_range_start=args.after,
+            date_range_end=args.before,
+            scope=args.scope,
+        )
+
+        exporter = get_sprint_exporter(args.format)
+        if args.format == "html":
+            exporter.export(results, args.output, summary=summary)
+        else:
+            exporter.export(results, args.output, summary=summary)
+
+        print()
+        print(summary)
+
+    except KeyboardInterrupt:
+        logger.warning("\nInterrupted by user")
+        sys.exit(130)
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=args.verbose)
+        sys.exit(1)
+
+
 def handle_mr_changes_command(args):
     """Handle the mr-changes subcommand (MR changeset for test selection)."""
     logger = logging.getLogger(__name__)
@@ -1138,6 +1132,78 @@ Note: This command tracks merge requests, not commits.
         help="JIRA project key to filter tickets"
     )
 
+    # ===== SPRINT COMMAND (commit velocity reporting) =====
+    sprint_parser = subparsers.add_parser(
+        "sprint",
+        help="Sprint commit velocity across dfs-core repositories",
+        description="Aggregate commits by developer and microservice for a sprint window",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Sprint velocity on premaster for all configured dfs-core repos
+  gitdoctor sprint --after 2026-05-26 --before 2026-06-09 -o sprint.csv
+
+  # Microservices only, HTML dashboard
+  gitdoctor sprint --after 2026-05-26 --before 2026-06-09 \\
+    --scope microservices --format html -o sprint-velocity.html
+
+  # Core components on master branch
+  gitdoctor sprint --after 2026-05-26 --before 2026-06-09 \\
+    --ref master --scope core -o sprint-core.csv -v
+        """,
+    )
+
+    sprint_parser.add_argument(
+        "-c", "--config",
+        default="config.yaml",
+        help="Path to YAML configuration file (default: config.yaml)",
+    )
+    sprint_parser.add_argument(
+        "--after",
+        required=True,
+        help="Sprint start date (inclusive). Format: YYYY-MM-DD",
+    )
+    sprint_parser.add_argument(
+        "--before",
+        required=True,
+        help="Sprint end date (inclusive). Format: YYYY-MM-DD",
+    )
+    sprint_parser.add_argument(
+        "--ref",
+        default="premaster",
+        help="Branch or tag to scan for commits (default: premaster)",
+    )
+    sprint_parser.add_argument(
+        "--scope",
+        choices=["all", "microservices", "core"],
+        default="all",
+        help="Project scope: all configured repos, microservices only, or core components (default: all)",
+    )
+    sprint_parser.add_argument(
+        "-o", "--output",
+        default="sprint-commits.csv",
+        help="Path to output file (default: sprint-commits.csv)",
+    )
+    sprint_parser.add_argument(
+        "--format",
+        choices=["csv", "json", "html"],
+        default="csv",
+        help="Output format: csv, json, or html (default: csv)",
+    )
+    sprint_parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose logging",
+    )
+    sprint_parser.add_argument(
+        "--projects",
+        help="Comma-separated list of project paths to search",
+    )
+    sprint_parser.add_argument(
+        "--project-ids",
+        help="Comma-separated list of project IDs to search",
+    )
+
     # ===== MR-CHANGES COMMAND (MR changeset for test selection) =====
     mr_changes_parser = subparsers.add_parser(
         "mr-changes",
@@ -1244,6 +1310,87 @@ Note: This command provides all data needed for intelligent test selection:
         help="JIRA project key to filter tickets (e.g., MON)"
     )
 
+    # ===== FLOW-REPORT =====
+    flow_parser = subparsers.add_parser(
+        "flow-report",
+        help="Branch route and premaster containment report (separate from delta)",
+    )
+    flow_parser.add_argument("-c", "--config", default="config.yaml")
+    flow_parser.add_argument("--premaster", help="Premaster branch ref (required unless preset)")
+    flow_parser.add_argument("--target", default="master", help="Target branch for MR audit")
+    flow_parser.add_argument("--preset", help="flow_validation preset name from config")
+    flow_parser.add_argument("--after", help="MRs merged after YYYY-MM-DD")
+    flow_parser.add_argument("--before", help="MRs merged before YYYY-MM-DD")
+    flow_parser.add_argument("--source-prefix", help="Filter source branches by prefix")
+    flow_parser.add_argument("--no-containment", action="store_true", help="Skip containment checks")
+    flow_parser.add_argument("-o", "--output", default="flow-report.html")
+    flow_parser.add_argument("--format", choices=["csv", "json", "html"], default="html")
+    flow_parser.add_argument("--projects", help="Comma-separated project paths")
+    flow_parser.add_argument("--project-ids", help="Comma-separated project IDs")
+    flow_parser.add_argument("--jira-url", help="JIRA base URL")
+    flow_parser.add_argument("--jira-project", help="JIRA project key filter")
+    flow_parser.add_argument("-v", "--verbose", action="store_true")
+
+    # ===== RELEASE-CHECK =====
+    release_parser = subparsers.add_parser(
+        "release-check",
+        help="Reconcile JIRA release scope with premaster/master git evidence",
+    )
+    release_parser.add_argument("-c", "--config", default="config.yaml")
+    release_parser.add_argument("--jira-csv", help="CSV of JIRA keys")
+    release_parser.add_argument("--jira-jql", help="JIRA JQL for release scope")
+    release_parser.add_argument("--base-ref", help="Base ref (tag/branch) for commit delta")
+    release_parser.add_argument("--target-ref", default="master")
+    release_parser.add_argument("--premaster", help="Premaster branch ref")
+    release_parser.add_argument("--preset", help="flow_validation preset")
+    release_parser.add_argument("--after", help="Date filter YYYY-MM-DD")
+    release_parser.add_argument("--before", help="Date filter YYYY-MM-DD")
+    release_parser.add_argument("--scope-label", default="release")
+    release_parser.add_argument("--no-flow-report", action="store_true")
+    release_parser.add_argument("-o", "--output", default="release-check.html")
+    release_parser.add_argument("--format", choices=["csv", "json", "html"], default="html")
+    release_parser.add_argument("--projects", help="Comma-separated project paths")
+    release_parser.add_argument("--project-ids", help="Comma-separated project IDs")
+    release_parser.add_argument("--jira-url", help="JIRA base URL")
+    release_parser.add_argument("--jira-project", help="JIRA project key")
+    release_parser.add_argument("-v", "--verbose", action="store_true")
+
+    # ===== VALIDATE-MR =====
+    validate_parser = subparsers.add_parser(
+        "validate-mr",
+        help="Advisory check for a single MR (route + containment)",
+    )
+    validate_parser.add_argument("-c", "--config", default="config.yaml")
+    validate_parser.add_argument("--project", required=True, help="Project path or ID")
+    validate_parser.add_argument("--mr", dest="mr_iid", type=int, required=True)
+    validate_parser.add_argument("--target", default="master", help="Expected target branch")
+    validate_parser.add_argument("--premaster", help="Premaster ref for containment")
+    validate_parser.add_argument("-v", "--verbose", action="store_true")
+
+    # ===== FLOW-EXCEPTION =====
+    exc_parser = subparsers.add_parser(
+        "flow-exception",
+        help="Register or manage flow bypass exceptions",
+    )
+    exc_parser.add_argument("-c", "--config", default="config.yaml")
+    exc_parser.add_argument("--registry-dir", help="Override exception registry directory")
+    exc_sub = exc_parser.add_subparsers(dest="exception_action", required=True)
+
+    exc_reg = exc_sub.add_parser("register", help="Register an exception")
+    exc_reg.add_argument("--project", required=True)
+    exc_reg.add_argument("--mr", dest="mr_iid", type=int, required=True)
+    exc_reg.add_argument("--ticket", required=True, help="JIRA ticket e.g. MON-123")
+    exc_reg.add_argument("--reason", required=True)
+    exc_reg.add_argument("--requested-by", default="")
+    exc_reg.add_argument("--approved-by", default="")
+    exc_reg.add_argument("--merge-commit", default=None)
+
+    exc_sub.add_parser("list", help="List exceptions")
+
+    exc_close = exc_sub.add_parser("close", help="Mark exception backfilled")
+    exc_close.add_argument("exception_id", help="Exception ID to close")
+    exc_close.add_argument("--backfill-mr", type=int, default=None)
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -1274,8 +1421,18 @@ Note: This command provides all data needed for intelligent test selection:
         handle_delta_command(args)
     elif args.command == "mr":
         handle_mr_command(args)
+    elif args.command == "sprint":
+        handle_sprint_command(args)
     elif args.command == "mr-changes":
         handle_mr_changes_command(args)
+    elif args.command == "flow-report":
+        handle_flow_report_command(args)
+    elif args.command == "release-check":
+        handle_release_check_command(args)
+    elif args.command == "validate-mr":
+        handle_validate_mr_command(args)
+    elif args.command == "flow-exception":
+        handle_flow_exception_command(args)
     else:
         parser.print_help()
         sys.exit(1)

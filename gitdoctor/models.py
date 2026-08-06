@@ -498,3 +498,93 @@ class MRChangesResult:
         """Get all test files."""
         return [fc for fc in self.all_file_changes if fc.is_test_file]
 
+
+# ============================================================
+# Sprint Velocity Models
+# ============================================================
+
+@dataclass
+class SprintCommit:
+    """A single commit within a sprint window."""
+    commit_sha: str
+    short_id: str
+    title: str
+    author_name: str
+    author_email: str
+    authored_date: str
+    committed_date: str
+    web_url: str
+
+
+@dataclass
+class SprintProjectResult:
+    """Commits fetched for one project during a sprint window."""
+    project_id: int
+    project_name: str
+    project_path: str
+    project_web_url: str
+    ref_name: str
+    commits: List[SprintCommit] = field(default_factory=list)
+    error: Optional[str] = None
+
+    @property
+    def has_commits(self) -> bool:
+        return len(self.commits) > 0
+
+    @property
+    def is_successful(self) -> bool:
+        return self.error is None
+
+
+@dataclass
+class SprintSummary:
+    """Aggregated sprint velocity across projects and developers."""
+    ref_name: str
+    date_range_start: str
+    date_range_end: str
+    scope: str
+    total_projects: int
+    projects_with_commits: int
+    projects_with_errors: int
+    total_commits: int
+    unique_developers: List[str] = field(default_factory=list)
+    commits_by_developer: Dict[str, int] = field(default_factory=dict)
+    commits_by_project: Dict[str, int] = field(default_factory=dict)
+    velocity_matrix: Dict[str, Dict[str, int]] = field(default_factory=dict)
+
+    def __str__(self) -> str:
+        lines = [
+            "=" * 60,
+            "Sprint Velocity Summary",
+            "=" * 60,
+            f"Branch/Ref:              {self.ref_name}",
+            f"Sprint Window:           {self.date_range_start} → {self.date_range_end}",
+            f"Scope:                   {self.scope}",
+            f"Projects Searched:       {self.total_projects}",
+            f"Projects with Commits:   {self.projects_with_commits}",
+            f"Projects with Errors:    {self.projects_with_errors}",
+            "",
+            f"Total Commits:           {self.total_commits}",
+            f"Unique Developers:       {len(self.unique_developers)}",
+        ]
+
+        if self.commits_by_developer:
+            lines.append("")
+            lines.append("Commits per Developer:")
+            for dev, count in sorted(
+                self.commits_by_developer.items(), key=lambda x: (-x[1], x[0])
+            ):
+                lines.append(f"  {dev}: {count}")
+
+        if self.commits_by_project:
+            lines.append("")
+            lines.append("Top Projects by Commit Count:")
+            for i, (project, count) in enumerate(
+                sorted(self.commits_by_project.items(), key=lambda x: (-x[1], x[0]))[:10],
+                1,
+            ):
+                lines.append(f"  {i}. {project}: {count}")
+
+        lines.append("=" * 60)
+        return "\n".join(lines)
+

@@ -72,6 +72,31 @@ filters:
     # - "your-group/archived/legacy-service"
     # - "your-group/test/large-test-repo"
 
+# Branch-flow validation (separate from delta — see FLOW_VALIDATION_GUIDE.md)
+flow_validation:
+  enabled: true
+  exception_registry_path: "flow-exceptions"
+  default_policy:
+    premaster_prefix: "premaster"
+    feature_prefixes: ["feature/"]
+    allowed_master_sources: ["premaster"]
+    exception_labels: ["flow-exception"]
+  presets:
+    devops_release:
+      projects:
+        - "dfs-core/devops/multinode_mobiquity_deployment"
+        - "dfs-core/devops/ansible_configs"
+      default_base_ref: "MobiquityPay_v11.1.0"
+      default_target_ref: "master"
+      premaster_ref: "premaster-291225"
+
+jira:
+  base_url: "https://jira.example.com"
+  project_key: "MON"
+  # email: "you@company.com"
+  # api_token: "${JIRA_API_TOKEN}"
+  # default_jql: "project = MON AND fixVersion = '11.2'"
+
 
 # ==================== Configuration Examples ====================
 

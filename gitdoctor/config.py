@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Any
 import yaml
 
 
@@ -61,11 +61,28 @@ class JIRAConfig:
     """Configuration for JIRA integration."""
     base_url: Optional[str] = None
     project_key: Optional[str] = None
+    email: Optional[str] = None
+    api_token: Optional[str] = None
+    default_jql: Optional[str] = None
 
     def __post_init__(self):
         if self.base_url:
             # Remove trailing slash if present
             self.base_url = self.base_url.rstrip("/")
+
+
+@dataclass
+class FlowValidationConfig:
+    """Configuration for branch-flow and release validation (separate from delta)."""
+    enabled: bool = False
+    exception_registry_path: Optional[str] = None
+    presets: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    default_policy: Any = None  # FlowPolicy set in load_config
+
+    def __post_init__(self):
+        if self.default_policy is None:
+            from .flow_models import FlowPolicy
+            self.default_policy = FlowPolicy()
 
 
 @dataclass
@@ -98,6 +115,7 @@ class AppConfig:
     filters: FiltersConfig = field(default_factory=FiltersConfig)
     jira: JIRAConfig = field(default_factory=JIRAConfig)
     notifications: NotificationsConfig = field(default_factory=NotificationsConfig)
+    flow_validation: FlowValidationConfig = field(default_factory=FlowValidationConfig)
 
     def __post_init__(self):
         # Validate that at least one source is configured
@@ -191,6 +209,31 @@ def load_config(config_path: str | Path) -> AppConfig:
         jira_config = JIRAConfig(
             base_url=jira_data.get("base_url"),
             project_key=jira_data.get("project_key"),
+            email=jira_data.get("email"),
+            api_token=jira_data.get("api_token"),
+            default_jql=jira_data.get("default_jql"),
+        )
+
+        # Parse flow_validation config (optional)
+        from .flow_models import FlowPolicy
+        fv_data = raw_config.get("flow_validation", {})
+        policy_data = fv_data.get("default_policy", fv_data.get("profiles", {}).get("default", {}))
+        default_flow_policy = FlowPolicy(
+            premaster_prefix=policy_data.get("premaster_prefix", "premaster"),
+            feature_prefixes=policy_data.get("feature_prefixes", ["feature/"]),
+            allowed_master_sources=policy_data.get("allowed_master_sources", ["premaster"]),
+            allowed_premaster_sources=policy_data.get(
+                "allowed_premaster_sources", ["feature/"]
+            ),
+            exception_labels=policy_data.get("exception_labels", ["flow-exception"]),
+            require_jira_in_commits=policy_data.get("require_jira_in_commits", True),
+            patch_search_limit=policy_data.get("patch_search_limit", 200),
+        )
+        flow_validation_config = FlowValidationConfig(
+            enabled=fv_data.get("enabled", False),
+            exception_registry_path=fv_data.get("exception_registry_path"),
+            presets=fv_data.get("presets", {}),
+            default_policy=default_flow_policy,
         )
 
         # Parse notifications config (optional)
@@ -209,6 +252,7 @@ def load_config(config_path: str | Path) -> AppConfig:
             filters=filters_config,
             jira=jira_config,
             notifications=notifications_config,
+            flow_validation=flow_validation_config,
         )
 
     except ConfigError:
